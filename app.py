@@ -1537,11 +1537,15 @@ def page_data_hub():
     # ============================ NOTION ============================
     if section == "Notion":
         st.subheader("🏠 Notion")
-        st.caption("Connexion API Notion ou import de l'export Notion (ZIP/CSV) via : https://www.notion.so/lapremierebrique/28718ece1f2d802eab1ef50e9d602443?v=28718ece1f2d81b3a38e000c8028d2aa")
-    
+        st.caption(
+            "Connexion API Notion ou import de l'export Notion (ZIP/CSV) via : "
+            "https://www.notion.so/lapremierebrique/28718ece1f2d802eab1ef50e9d602443"
+            "?v=28718ece1f2d81b3a38e000c8028d2aa"
+        )
+
         # 👉 Drag & drop (ZIP/CSV) en premier, API en deuxième
         tab_import, tab_api = st.tabs(["Mode Export (ZIP/CSV)", "Mode API"])
-    
+
         # ---------- Mode Import ZIP/CSV ----------
         with tab_import:
             st.subheader("Import d’un export Notion (ZIP/CSV)")
@@ -1550,7 +1554,7 @@ def page_data_hub():
                 type=["zip", "csv"],
                 accept_multiple_files=False,
             )
-    
+
             if uploaded is not None:
                 try:
                     if uploaded.name.lower().endswith(".csv"):
@@ -1577,17 +1581,17 @@ def page_data_hub():
                                 df_import = next(
                                     df for (name, df) in csv_list if name == chosen_name
                                 )
-    
+
                     if df_import is not None:
                         st.session_state.imp_df = df_import
                         st.session_state.imp_filename = chosen_name
                         st.session_state.pop("imp_cols_multiselect", None)
                 except Exception as e:
                     st.error(f"❌ Erreur lors de la lecture de l’export : {e}")
-    
+
             df_import = st.session_state.imp_df
             chosen_name = st.session_state.imp_filename
-    
+
             if df_import is None:
                 st.info("Glisse ton fichier ici pour commencer.")
             else:
@@ -1595,7 +1599,7 @@ def page_data_hub():
                     f"Fichier chargé : **{chosen_name}** "
                     f"({len(df_import)} lignes × {len(df_import.columns)} colonnes)"
                 )
-    
+
                 all_cols_imp = list(df_import.columns)
                 if "imp_cols_multiselect" not in st.session_state:
                     st.session_state.imp_cols_multiselect = all_cols_imp.copy()
@@ -1605,7 +1609,7 @@ def page_data_hub():
                         for c in st.session_state.imp_cols_multiselect
                         if c in all_cols_imp
                     ]
-    
+
                 st.caption("Colonnes à afficher (tu peux taper pour filtrer les noms).")
                 c2_sel1, c2_sel2 = st.columns(2)
                 with c2_sel1:
@@ -1614,19 +1618,19 @@ def page_data_hub():
                 with c2_sel2:
                     if st.button("🚫 Tout désélectionner", key="imp_select_none"):
                         st.session_state.imp_cols_multiselect = []
-    
+
                 st.multiselect(
                     "Colonnes à afficher",
                     options=all_cols_imp,
                     key="imp_cols_multiselect",
                 )
-    
+
                 selected_cols_imp = st.session_state.imp_cols_multiselect
                 if selected_cols_imp:
                     df_view_imp = df_import[selected_cols_imp].copy()
                 else:
                     df_view_imp = df_import.iloc[:, []].copy()
-    
+
                 edited_df_imp = st.data_editor(
                     df_view_imp,
                     use_container_width=True,
@@ -1634,15 +1638,15 @@ def page_data_hub():
                     hide_index=True,
                     key="imp_table",
                 )
-    
+
                 csv_name_imp = f"{TODAY_STR}_notion_export.csv"
                 xlsx_name_imp = f"{TODAY_STR}_notion_export.xlsx"
-    
+
                 csv_bytes_imp = df_to_csv_bytes(edited_df_imp)
                 excel_bytes_imp = df_to_excel_bytes(
                     edited_df_imp, sheet_name="ExportNotion"
                 )
-    
+
                 c1, c2 = st.columns(2)
                 with c1:
                     st.download_button(
@@ -1659,108 +1663,107 @@ def page_data_hub():
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     )
 
-    # ---------- Mode API ----------
-    with tab_api:
-        st.subheader("Connexion directe à Notion (API)")
-        base_choisie = st.radio(
-            "Sélection",
-            ["Notion projet", "Bac à sable"],
-            horizontal=True,
-        )
-        db_id = DB_BAC_SABLE if base_choisie == "Bac à sable" else DB_NOTION_PROJET
-
-        if st.button("⚙️ Charger via l’API Notion"):
-            try:
-                with st.spinner("Récupération du schéma Notion…"):
-                    schema_order = get_database_schema(db_id)
-                with st.spinner("Récupération de toutes les lignes…"):
-                    results = get_all_rows(db_id)
-                if not results:
-                    st.info("Aucune page trouvée dans cette base.")
-                    st.session_state.api_df = None
-                else:
-                    df_api = notion_to_df(results, schema_order)
-                    st.session_state.api_df = df_api
-                    st.session_state.pop("api_cols_multiselect", None)
-            except Exception as e:
-                st.error(f"❌ Erreur API Notion : {e}")
-
-        df_api = st.session_state.api_df
-        if df_api is None or df_api.empty:
-            st.info(
-                "Aucune donnée API chargée pour le moment. "
-                "Clique sur le bouton ci-dessus."
+        # ---------- Mode API ----------
+        with tab_api:
+            st.subheader("Connexion directe à Notion (API)")
+            base_choisie = st.radio(
+                "Sélection",
+                ["Notion projet", "Bac à sable"],
+                horizontal=True,
             )
-        else:
-            st.success(f"{len(df_api)} lignes • {len(df_api.columns)} colonnes")
+            db_id = DB_BAC_SABLE if base_choisie == "Bac à sable" else DB_NOTION_PROJET
 
-            all_cols = list(df_api.columns)
-            if "api_cols_multiselect" not in st.session_state:
-                st.session_state.api_cols_multiselect = all_cols.copy()
+            if st.button("⚙️ Charger via l’API Notion"):
+                try:
+                    with st.spinner("Récupération du schéma Notion…"):
+                        schema_order = get_database_schema(db_id)
+                    with st.spinner("Récupération de toutes les lignes…"):
+                        results = get_all_rows(db_id)
+                    if not results:
+                        st.info("Aucune page trouvée dans cette base.")
+                        st.session_state.api_df = None
+                    else:
+                        df_api = notion_to_df(results, schema_order)
+                        st.session_state.api_df = df_api
+                        st.session_state.pop("api_cols_multiselect", None)
+                except Exception as e:
+                    st.error(f"❌ Erreur API Notion : {e}")
+
+            df_api = st.session_state.api_df
+            if df_api is None or df_api.empty:
+                st.info(
+                    "Aucune donnée API chargée pour le moment. "
+                    "Clique sur le bouton ci-dessus."
+                )
             else:
-                st.session_state.api_cols_multiselect = [
-                    c
-                    for c in st.session_state.api_cols_multiselect
-                    if c in all_cols
-                ]
+                st.success(f"{len(df_api)} lignes • {len(df_api.columns)} colonnes")
 
-            st.caption("Colonnes à afficher (tu peux taper pour filtrer les noms).")
-            c_sel1, c_sel2 = st.columns(2)
-            with c_sel1:
-                if st.button("✅ Tout sélectionner", key="api_select_all"):
+                all_cols = list(df_api.columns)
+                if "api_cols_multiselect" not in st.session_state:
                     st.session_state.api_cols_multiselect = all_cols.copy()
-            with c_sel2:
-                if st.button("🚫 Tout désélectionner", key="api_select_none"):
-                    st.session_state.api_cols_multiselect = []
+                else:
+                    st.session_state.api_cols_multiselect = [
+                        c
+                        for c in st.session_state.api_cols_multiselect
+                        if c in all_cols
+                    ]
 
-            st.multiselect(
-                "Colonnes à afficher",
-                options=all_cols,
-                key="api_cols_multiselect",
-            )
+                st.caption("Colonnes à afficher (tu peux taper pour filtrer les noms).")
+                c_sel1, c_sel2 = st.columns(2)
+                with c_sel1:
+                    if st.button("✅ Tout sélectionner", key="api_select_all"):
+                        st.session_state.api_cols_multiselect = all_cols.copy()
+                with c_sel2:
+                    if st.button("🚫 Tout désélectionner", key="api_select_none"):
+                        st.session_state.api_cols_multiselect = []
 
-            selected_cols = st.session_state.api_cols_multiselect
-            if selected_cols:
-                df_view = df_api[selected_cols].copy()
-            else:
-                df_view = df_api.iloc[:, []].copy()
-
-            edited_df = st.data_editor(
-                df_view,
-                use_container_width=True,
-                height=550,
-                hide_index=True,
-                key="api_table",
-            )
-
-            base_slug = base_choisie.replace(" ", "_").lower()
-            csv_name = f"{TODAY_STR}_notion_api_{base_slug}.csv"
-            xlsx_name = f"{TODAY_STR}_notion_api_{base_slug}.xlsx"
-
-            csv_bytes = df_to_csv_bytes(edited_df)
-            excel_bytes = df_to_excel_bytes(
-                edited_df, sheet_name=base_choisie[:31]
-            )
-
-            c1, c2 = st.columns(2)
-            with c1:
-                st.download_button(
-                    "📥 Télécharger CSV",
-                    data=csv_bytes,
-                    file_name=csv_name,
-                    mime="text/csv",
-                )
-            with c2:
-                st.download_button(
-                    "📥 Télécharger Excel",
-                    data=excel_bytes,
-                    file_name=xlsx_name,
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                st.multiselect(
+                    "Colonnes à afficher",
+                    options=all_cols,
+                    key="api_cols_multiselect",
                 )
 
+                selected_cols = st.session_state.api_cols_multiselect
+                if selected_cols:
+                    df_view = df_api[selected_cols].copy()
+                else:
+                    df_view = df_api.iloc[:, []].copy()
+
+                edited_df = st.data_editor(
+                    df_view,
+                    use_container_width=True,
+                    height=550,
+                    hide_index=True,
+                    key="api_table",
+                )
+
+                base_slug = base_choisie.replace(" ", "_").lower()
+                csv_name = f"{TODAY_STR}_notion_api_{base_slug}.csv"
+                xlsx_name = f"{TODAY_STR}_notion_api_{base_slug}.xlsx"
+
+                csv_bytes = df_to_csv_bytes(edited_df)
+                excel_bytes = df_to_excel_bytes(
+                    edited_df, sheet_name=base_choisie[:31]
+                )
+
+                c1, c2 = st.columns(2)
+                with c1:
+                    st.download_button(
+                        "📥 Télécharger CSV",
+                        data=csv_bytes,
+                        file_name=csv_name,
+                        mime="text/csv",
+                    )
+                with c2:
+                    st.download_button(
+                        "📥 Télécharger Excel",
+                        data=excel_bytes,
+                        file_name=xlsx_name,
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    )
 
     # ============================ BACK-OFFICE ============================
-    if section == "Back-office":
+    elif section == "Back-office":
         st.subheader("🗄 Back-office PostgreSQL")
         st.caption("Connexion en lecture au read-replica PostgreSQL de production.")
 
@@ -1936,6 +1939,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
