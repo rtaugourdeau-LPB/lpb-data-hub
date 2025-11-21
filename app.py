@@ -1539,7 +1539,7 @@ def page_data_hub():
         st.subheader("🏠 Notion")
         st.caption("Connexion API Notion ou import d’un export Notion (ZIP/CSV).")
 
-        tab_api, tab_import = st.tabs(["Mode API", "Mode Export (ZIP/CSV)"])
+        tab_api, tab_import = st.tabs(["Mode Export (ZIP/CSV), "Mode API"])
 
         # ---------- Mode API ----------
         with tab_api:
@@ -1934,4 +1934,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
