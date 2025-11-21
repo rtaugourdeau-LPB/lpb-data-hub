@@ -1909,7 +1909,7 @@ def page_prequalification():
     st.title("📁 Préqualification + Emailing")
     st.markdown(
         """
-        Cet app publique est dédiée à l'équipe projet.
+        Cette app publique est dédiée à l'équipe projet.
 
         👉 **Ouvrir l'application :**  
         [https://lpb-pdp-preselection-emaling.streamlit.app/](https://lpb-pdp-preselection-emaling.streamlit.app/)
@@ -1939,6 +1939,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
