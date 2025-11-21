@@ -1535,10 +1535,9 @@ def page_data_hub():
         )
 
     # ============================ NOTION ============================
-    # ============================ NOTION ============================
     if section == "Notion":
         st.subheader("🏠 Notion")
-        st.caption("Connexion API Notion ou import d’un export Notion (ZIP/CSV).")
+        st.caption("Connexion API Notion ou import de l'export Notion (ZIP/CSV) via : https://www.notion.so/lapremierebrique/28718ece1f2d802eab1ef50e9d602443?v=28718ece1f2d81b3a38e000c8028d2aa")
     
         # 👉 Drag & drop (ZIP/CSV) en premier, API en deuxième
         tab_import, tab_api = st.tabs(["Mode Export (ZIP/CSV)", "Mode API"])
@@ -1937,6 +1936,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
