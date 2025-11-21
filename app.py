@@ -1,13 +1,4 @@
-import os
-import csv
-import psycopg2
 import streamlit as st
-import pandas as pd
-import requests
-from io import BytesIO
-import zipfile
-import json
-from datetime import datetime
 
 # ============================================================
 # ⚙️ CONFIG GENERALE
@@ -19,28 +10,15 @@ st.set_page_config(
     layout="wide",
 )
 
-TODAY_STR = datetime.now().strftime("%Y-%m-%d")
-
 import os
 import csv
 import psycopg2
-import streamlit as st
 import pandas as pd
 import requests
 from io import BytesIO
 import zipfile
 import json
 from datetime import datetime
-
-# ============================================================
-# ⚙️ CONFIG GENERALE
-# ============================================================
-
-st.set_page_config(
-    page_title="Data Hub LPB",
-    page_icon="🛠️",
-    layout="wide",
-)
 
 TODAY_STR = datetime.now().strftime("%Y-%m-%d")
 
@@ -874,4 +852,5 @@ if section == "Back-office":
                 data=excel_bytes_bo,
                 file_name=xlsx_name_bo,
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+
             )
