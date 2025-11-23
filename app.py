@@ -1237,7 +1237,7 @@ def page_votes():
         .nunique()
     )
     
-    st.write(f"Souscriptions actives/historiques (avec e-mail) : {total_investors:,}")
+    st.write(f"Souscriptions uniques (avec e-mail) : {total_investors:,}")
 
     # 5) Croisement e-mail (Airtable ↔ BO)
     st.subheader("5) Croisement e-mail (Airtable ↔ BO)")
@@ -1950,6 +1950,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
