@@ -1226,7 +1226,18 @@ def page_votes():
     # 4) Souscriptions du projet (BO)
     st.subheader("4) Souscriptions BO du projet (filtrées par project_id)")
     subs = load_subs_for_project(project_id)
-    st.write(f"Souscriptions actives/historiques (avec e-mail) : **{len(subs):,}**")
+
+    # 🔢 Calcul du nombre d'investisseurs uniques (emails uniques)
+    total_investors = (
+        subs["email_normalized"]
+        .dropna()
+        .astype(str)
+        .str.strip()
+        .str.lower()
+        .nunique()
+    )
+    
+    st.write(f"Souscriptions actives/historiques (avec e-mail) : {total_investors:,}")
 
     # 5) Croisement e-mail (Airtable ↔ BO)
     st.subheader("5) Croisement e-mail (Airtable ↔ BO)")
@@ -1939,6 +1950,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
