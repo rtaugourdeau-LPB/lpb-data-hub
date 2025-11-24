@@ -1917,7 +1917,7 @@ def page_data_hub():
 # =============================================================================
 
 def page_prequalification():
-    st.title("📁 Préqualification + Emailing")
+    st.title("📁 Préqualification + Emailing + ML Statut")
     st.markdown(
         """
         Cette app publique est dédiée à l'équipe projet.
@@ -1936,7 +1936,7 @@ def main():
         st.markdown("## 🧱 Outils Data LPB")
         app_choice = st.radio(
             "Choix de l’outil",
-            ["Data Hub (BO/Notion)", "Vérification des votes Airtable", "Préqualification + emailing + ML"],
+            ["Data Hub (BO/Notion)", "Vérification des votes Airtable", "Préqualification + Emailing + ML Statut"],
             index=0,
         )
 
@@ -1950,6 +1950,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
