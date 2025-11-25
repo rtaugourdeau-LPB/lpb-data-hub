@@ -1932,7 +1932,7 @@ def page_rendements():
 
     st.markdown(
         """
-        Dashboard interactif comparant le rendement du crowdfunding immobilier
+        Dashboard interactif comparant le rendement du crowdfunding immobilier (≈ 11,5 %)
         aux autres classes d'actifs.
 
         👉 **Ouvrir le dashboard :**  
@@ -1970,6 +1970,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
