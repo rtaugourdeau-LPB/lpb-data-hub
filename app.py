@@ -1913,7 +1913,7 @@ def page_data_hub():
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 )
 # =============================================================================
-# 📄 MODULE 3 : PAGE "Préqualification + emailing"
+# 📄 MODULE 3/4 : Autres pages
 # =============================================================================
 
 def page_prequalification():
@@ -1927,6 +1927,19 @@ def page_prequalification():
         """
     )
 
+def page_rendements():
+    st.title("📈 Comparaison des rendements par classe d'actifs")
+
+    st.markdown(
+        """
+        Dashboard interactif comparant le rendement du crowdfunding immobilier
+        aux autres classes d'actifs.
+
+        👉 **Ouvrir le dashboard :**  
+        [https://rtaugourdeau-lpb.shinyapps.io/RendementActifs/](https://rtaugourdeau-lpb.shinyapps.io/RendementActifs/)
+        """
+    )
+
 # =============================================================================
 # 🧭 ROUTAGE PRINCIPAL
 # =============================================================================
@@ -1936,29 +1949,28 @@ def main():
         st.markdown("## 🧱 Outils Data LPB")
         app_choice = st.radio(
             "Choix de l’outil",
-            ["Data Hub (BO/Notion)", "Vérification des votes Airtable", "Préqualification + Emailing + ML"],
+            [
+                "Data Hub (BO/Notion)",
+                "Vérification des votes Airtable",
+                "Préqualification + Emailing + ML Statut",
+                "Comparaison des rendements"
+            ],
             index=0,
         )
 
     if app_choice == "Vérification des votes Airtable":
         page_votes()
-    elif app_choice == "Préqualification + emailing":
+    elif app_choice == "Préqualification + Emailing + ML Statut":
         page_prequalification()
+    elif app_choice == "Comparaison des rendements":
+        page_rendements()
     else:
         page_data_hub()
-
-    # 👇👇👇 Ajoute ce bloc pour le lien de comparaison des rendements
-    st.markdown("---")
-    st.markdown(
-        """
-        📈 **Rendement des autres actifs (comparaison avec le crowdfunding)**  
-        👉 [Ouvrir le dashboard](https://rtaugourdeau-lpb.shinyapps.io/RendementActifs/)
-        """
-    )
 
 
 if __name__ == "__main__":
     main()
+
 
 
 
