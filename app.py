@@ -1952,7 +1952,7 @@ def main():
             [
                 "Data Hub (BO/Notion)",
                 "Vérification des votes Airtable",
-                "Préqualification + Emailing + ML Statut",
+                "Préqualification + Emailing + ML",
                 "Comparaison des rendements"
             ],
             index=0,
@@ -1960,7 +1960,7 @@ def main():
 
     if app_choice == "Vérification des votes Airtable":
         page_votes()
-    elif app_choice == "Préqualification + Emailing + ML Statut":
+    elif app_choice == "Préqualification + Emailing + ML":
         page_prequalification()
     elif app_choice == "Comparaison des rendements":
         page_rendements()
@@ -1970,6 +1970,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
