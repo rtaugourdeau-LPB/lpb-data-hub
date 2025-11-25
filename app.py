@@ -1936,7 +1936,7 @@ def main():
         st.markdown("## 🧱 Outils Data LPB")
         app_choice = st.radio(
             "Choix de l’outil",
-            ["Data Hub (BO/Notion)", "Vérification des votes Airtable", "Préqualification + Emailing + ML Statut"],
+            ["Data Hub (BO/Notion)", "Vérification des votes Airtable", "Préqualification + Emailing + ML"],
             index=0,
         )
 
@@ -1959,6 +1959,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
