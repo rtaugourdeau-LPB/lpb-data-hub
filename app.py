@@ -1947,9 +1947,19 @@ def main():
     else:
         page_data_hub()
 
+    # 👇👇👇 Ajoute ce bloc pour le lien de comparaison des rendements
+    st.markdown("---")
+    st.markdown(
+        """
+        📈 **Rendement des autres actifs (comparaison avec le crowdfunding)**  
+        👉 [Ouvrir le dashboard](https://rtaugourdeau-lpb.shinyapps.io/RendementActifs/)
+        """
+    )
+
 
 if __name__ == "__main__":
     main()
+
 
 
 
