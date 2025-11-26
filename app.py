@@ -1541,7 +1541,7 @@ def page_data_hub():
     with st.sidebar:
         section = st.radio(
             "Data Hub — Section",
-            ["Notion"], #  ["Notion", "Back-office"] -> BO annulé finalement
+            ["Notion", "Back-office"], #  ["Notion", "Back-office"] -> BO annulé finalement
             index=0,
         )
 
@@ -1970,6 +1970,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
