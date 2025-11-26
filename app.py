@@ -1922,7 +1922,7 @@ def page_prequalification():
         """
         Cette app publique est dédiée à l'équipe projet.
 
-        👉 **Ouvrir l'application :**  
+        👉 **Ouvrir l'application Streamlit :**  
         [https://lpb-pdp-preselection-emaling.streamlit.app/](https://lpb-pdp-preselection-emaling.streamlit.app/)
         """
     )
@@ -1935,7 +1935,7 @@ def page_rendements():
         Dashboard interactif comparant le rendement du crowdfunding immobilier (≈ 11,5 %)
         aux autres classes d'actifs.
 
-        👉 **Ouvrir le dashboard :**  
+        👉 **Ouvrir l'application R/Shiny :**  
         [https://rtaugourdeau-lpb.shinyapps.io/RendementActifs/](https://rtaugourdeau-lpb.shinyapps.io/RendementActifs/)
         """
     )
@@ -1970,6 +1970,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
