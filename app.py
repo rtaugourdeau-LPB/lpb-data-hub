@@ -1555,7 +1555,7 @@ def page_data_hub():
         )
 
         # 👉 Drag & drop (ZIP/CSV) en premier, API en deuxième
-        tab_import, tab_api = st.tabs(["Mode Export (ZIP/CSV)", "Mode API"])
+        tab_import, tab_api = st.tabs(["Mode Export (ZIP/CSV)", "Mode API (plus long)"])
 
         # ---------- Mode Import ZIP/CSV ----------
         with tab_import:
@@ -1970,6 +1970,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
