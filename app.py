@@ -1960,7 +1960,7 @@ def main():
 
     if app_choice == "Vérification des votes Airtable":
         page_votes()
-    elif app_choice == "Préqualification + Emailing + ML":
+    elif app_choice == "Préqualification + Emailing + Scoring ML":
         page_prequalification()
     elif app_choice == "Comparaison des rendements":
         page_rendements()
@@ -1970,6 +1970,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
