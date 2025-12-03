@@ -1916,7 +1916,7 @@ def page_data_hub():
 # =============================================================================
 
 def page_prequalification():
-    st.title("📁 Préqual + Emailing + Scoring ML")
+    st.title("📁 Préqualification des projets, Emailing de refus, Scoring ML prédiction du statut")
     st.markdown(
         """
         Cette app publique est dédiée à l'équipe projet.
@@ -1969,6 +1969,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
