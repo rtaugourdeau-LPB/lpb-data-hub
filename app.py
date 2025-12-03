@@ -1927,7 +1927,7 @@ def page_prequalification():
     )
 
 def page_rendements():
-    st.title("📈 Comparaison des rendements actifs par classe d'actifs")
+    st.title("📈 Comparaison des rendements par classe d'actifs")
 
     st.markdown(
         """
@@ -1969,6 +1969,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
