@@ -1927,7 +1927,7 @@ def page_prequalification():
     )
 
 def page_rendements():
-    st.title("📈 Comparaison des rendements par classe d'actifs")
+    st.title("📈 Comparaison des rendements actifs par classe d'actifs")
 
     st.markdown(
         """
@@ -1952,7 +1952,7 @@ def main():
                 "Data Hub (BO/Notion)",
                 "Vérification des votes Airtable",
                 "Préqual + Emailing + Scoring ML",
-                "Comparaison des rendements"
+                "Comparaison des rendements actifs"
             ],
             index=0,
         )
@@ -1961,7 +1961,7 @@ def main():
         page_votes()
     elif app_choice == "Préqual + Emailing + Scoring ML":
         page_prequalification()
-    elif app_choice == "Comparaison des rendements":
+    elif app_choice == "Comparaison des rendements actifs":
         page_rendements()
     else:
         page_data_hub()
@@ -1969,6 +1969,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
