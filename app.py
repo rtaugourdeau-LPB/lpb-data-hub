@@ -1934,7 +1934,7 @@ def page_rendements():
         Dashboard interactif comparant le rendement du crowdfunding immobilier (≈ 11,5 % annualisé)
         aux autres classes d'actifs avec une étude des corrélations.
 
-        👉 **Ouvrir l'application R/Shiny :**  
+        👉 **Ouvrir l'application Rshiny :**  
         [https://rtaugourdeau-lpb.shinyapps.io/RendementActifs/](https://rtaugourdeau-lpb.shinyapps.io/RendementActifs/)
         """
     )
@@ -1969,6 +1969,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
