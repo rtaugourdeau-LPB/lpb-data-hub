@@ -1916,7 +1916,7 @@ def page_data_hub():
 # =============================================================================
 
 def page_prequalification():
-    st.title("📁 Préqualification + Emailing + Scoring ML")
+    st.title("📁 Préqual + Emailing + Scoring ML")
     st.markdown(
         """
         Cette app publique est dédiée à l'équipe projet.
@@ -1951,7 +1951,7 @@ def main():
             [
                 "Data Hub (BO/Notion)",
                 "Vérification des votes Airtable",
-                "Préqualification + Emailing + Scoring ML",
+                "Préqual + Emailing + Scoring ML",
                 "Comparaison des rendements"
             ],
             index=0,
@@ -1959,7 +1959,7 @@ def main():
 
     if app_choice == "Vérification des votes Airtable":
         page_votes()
-    elif app_choice == "Préqualification + Emailing + Scoring ML":
+    elif app_choice == "Préqual + Emailing + Scoring ML":
         page_prequalification()
     elif app_choice == "Comparaison des rendements":
         page_rendements()
@@ -1969,6 +1969,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
