@@ -1550,8 +1550,7 @@ def page_data_hub():
         st.subheader("🏠 Notion")
         st.caption(
             "Connexion API Notion ou import de l'export Notion (ZIP/CSV) via : "
-            "https://www.notion.so/lapremierebrique/28718ece1f2d802eab1ef50e9d602443"
-            "?v=28718ece1f2d81b3a38e000c8028d2aa"
+            "https://www.notion.so/lapremierebrique/20a18ece1f2d81fab4bbf17f57df8a3a?v=21418ece1f2d8031baf2000c82651d2f"
         )
 
         # 👉 Drag & drop (ZIP/CSV) en premier, API en deuxième
@@ -1970,6 +1969,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
