@@ -748,6 +748,75 @@ def df_to_csv_bytes(df: pd.DataFrame):
 # =============================================================================
 # 🔧 FONCTIONS NOTION (Data Hub)
 # =============================================================================
+######################################################################################
+@st.cache_data(show_spinner=False)
+def load_notion_projects_df() -> pd.DataFrame:
+    """
+    Charge la base Notion des projets (DB_NOTION_PROJET) et ajoute une colonne
+    ID_BO_clean (entier) basée sur 'ID Back-office' ou '🔑 ID Back-office'.
+    """
+    try:
+        schema_order = get_database_schema(DB_NOTION_PROJET)
+        results = get_all_rows(DB_NOTION_PROJET)
+    except Exception as e:
+        st.warning(f"Impossible de charger la base Notion projets : {e}")
+        return pd.DataFrame()
+
+    if not results:
+        return pd.DataFrame()
+
+    df = notion_to_df(results, schema_order)
+
+    # Cherche le bon nom de colonne pour l'ID BO
+    id_bo_col = None
+    for col in df.columns:
+        if col in ("ID Back-office", "🔑 ID Back-office"):
+            id_bo_col = col
+            break
+
+    if id_bo_col is not None:
+        df["ID_BO_clean"] = (
+            pd.to_numeric(df[id_bo_col], errors="coerce")
+              .astype("Int64")  # entier nullable
+        )
+    else:
+        # Colonne absente : on met juste une colonne vide
+        df["ID_BO_clean"] = pd.Series([pd.NA] * len(df), dtype="Int64")
+
+    return df
+
+def get_vote_result_date_for_project(project_id: int) -> Optional[str]:
+    """
+    Retourne la 'Date résultat de vote' Notion pour un project_id BO donné,
+    ou None si non trouvée / non renseignée.
+    """
+    df = load_notion_projects_df()
+    if df is None or df.empty:
+        return None
+
+    # Filtre sur la colonne ID_BO_clean
+    try:
+        pid = int(project_id)
+    except Exception:
+        return None
+
+    match = df[df["ID_BO_clean"] == pid]
+    if match.empty:
+        return None
+
+    # On prend la première ligne correspondante
+    row = match.iloc[0]
+    val = row.get("Date résultat de vote")
+
+    # Gestion des NaN / None
+    if val is None:
+        return None
+    if isinstance(val, float) and math.isnan(val):
+        return None
+
+    # Si c'est déjà une date Notion au format string (YYYY-MM-DD), on renvoie tel quel
+    return str(val)
+######################################################################################
 
 def get_database_schema(db_id: str):
     """Récupère la liste (nom, type) de toutes les propriétés de la base, dans l'ordre API."""
@@ -1145,6 +1214,12 @@ def page_votes():
     )
     proj_url = LPB_PROJECT_URL.format(project_id=project_id)
     st.markdown(f"🔗 **Projet choisi :** {project_disp} → [{proj_url}]({proj_url})")
+    # 🔎 Date résultat de vote depuis Notion (via ID Back-office)
+    date_res_vote = get_vote_result_date_for_project(project_id)
+    if date_res_vote:
+        st.info(f"📅 **Date résultat de vote (Notion)** : {date_res_vote}")
+    else:
+        st.info("📅 **Date résultat de vote (Notion)** : non renseignée pour ce projet.")
 
     # 3) Emails & réponses Airtable (prolongation + pouvoirs)
     st.subheader("3) Emails & Réponses Airtable (prolongation / pénalités)")
@@ -1311,6 +1386,9 @@ def page_votes():
     )
     participation_rate = (n_with / total_subs * 100) if total_subs else 0.0
     part_delta = f"{n_with}/{total_subs}" if total_subs else "0/0 (aucune souscription projet)"
+    # On réutilise / sécurise la date de résultat de vote Notion
+    date_res_vote = date_res_vote if "date_res_vote" in locals() else get_vote_result_date_for_project(project_id)
+
 
     c1, c2, c3, c4, c5, c6 = st.columns(6)
     c1.metric("Adresses uniques (vue)", f"{n_votes:,}")
@@ -1319,6 +1397,14 @@ def page_votes():
     c4.metric("Sans souscription", f"{n_without:,}")
     c5.metric("Taux de couverture", f"{coverage_rate:.1f}%")
     c6.metric("Participation réelle", f"{participation_rate:.1f}%", delta=part_delta)
+    
+    c7, _, _ = st.columns(3)
+    with c7:
+        st.metric(
+            "Date résultat de vote (Notion)",
+            date_res_vote or "Non renseignée",
+        )
+
 
     st.caption(
         "KPI calculés après déduplication. "
@@ -1969,6 +2055,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
