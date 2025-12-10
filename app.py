@@ -785,16 +785,13 @@ def load_notion_projects_df() -> pd.DataFrame:
 
     return df
 
+from datetime import datetime
+
 def get_vote_result_date_for_project(project_id: int) -> Optional[str]:
-    """
-    Retourne la 'Date résultat de vote' Notion pour un project_id BO donné,
-    ou None si non trouvée / non renseignée.
-    """
     df = load_notion_projects_df()
     if df is None or df.empty:
         return None
 
-    # Filtre sur la colonne ID_BO_clean
     try:
         pid = int(project_id)
     except Exception:
@@ -804,18 +801,32 @@ def get_vote_result_date_for_project(project_id: int) -> Optional[str]:
     if match.empty:
         return None
 
-    # On prend la première ligne correspondante
     row = match.iloc[0]
     val = row.get("Date résultat de vote")
 
-    # Gestion des NaN / None
     if val is None:
         return None
     if isinstance(val, float) and math.isnan(val):
         return None
 
-    # Si c'est déjà une date Notion au format string (YYYY-MM-DD), on renvoie tel quel
-    return str(val)
+    raw = str(val).strip()
+
+    # cas "start → end" (plage de dates)
+    if "→" in raw:
+        start_raw, end_raw = [x.strip() for x in raw.split("→", 1)]
+        def fmt(d):
+            try:
+                return datetime.fromisoformat(d.split("T")[0]).strftime("%d/%m/%Y")
+            except Exception:
+                return d
+        return f"{fmt(start_raw)} → {fmt(end_raw)}"
+
+    # cas simple : une seule date
+    try:
+        d = datetime.fromisoformat(raw.split("T")[0])
+        return d.strftime("%d/%m/%Y")
+    except Exception:
+        return raw
 ######################################################################################
 
 def get_database_schema(db_id: str):
@@ -1400,10 +1411,7 @@ def page_votes():
     
     c7, _, _ = st.columns(3)
     with c7:
-        st.metric(
-            "Date résultat de vote (Notion)",
-            date_res_vote or "Non renseignée",
-        )
+        st.metric("Date résultat de vote (Notion)", date_res_vote or "Non renseignée")
 
 
     st.caption(
@@ -2055,6 +2063,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
