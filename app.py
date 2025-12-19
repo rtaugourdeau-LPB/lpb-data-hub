@@ -1581,7 +1581,7 @@ def page_votes():
     # Prolongation pondérée
     if counts_pro is not None and "prolongation" in final_tbl.columns:
         with col1w:
-            st.markdown("### Prolongation — pondéré (€ investis)")
+            st.markdown("### Prolongation — pondéré")
             df_w_pro, tot_w_pro = weighted_counts(final_tbl, "prolongation")
             st.dataframe(df_w_pro, use_container_width=True)
             st.caption(f"Total pondéré : {tot_w_pro:,.2f} €")
@@ -1590,7 +1590,7 @@ def page_votes():
     # Pénalités / pouvoir pondéré
     if counts_pvr is not None and "pouvoir" in final_tbl.columns:
         with col2w:
-            st.markdown("### Pénalités — pondéré (€ investis)")
+            st.markdown("### Pénalités — pondéré")
             df_w_pvr, tot_w_pvr = weighted_counts(final_tbl, "pouvoir")
             st.dataframe(df_w_pvr, use_container_width=True)
             st.caption(f"Total pondéré : {tot_w_pvr:,.2f} €")
@@ -2142,6 +2142,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
