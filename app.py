@@ -1119,9 +1119,30 @@ def list_pg_tables():
 
 @st.cache_data(show_spinner=False)
 def read_pg_table(schema: str, table: str) -> pd.DataFrame:
-    """Lit TOUTE la table PostgreSQL (sans LIMIT)."""
+    """Lit la table PostgreSQL sans planter sur les dates invalides (date/timestamp => texte)."""
     conn = get_pg_connection()
-    query = f'SELECT * FROM "{schema}"."{table}"'
+
+    # 1) récupérer les colonnes + types
+    meta_q = """
+    SELECT column_name, data_type
+    FROM information_schema.columns
+    WHERE table_schema = %s
+      AND table_name = %s
+    ORDER BY ordinal_position;
+    """
+    meta = pd.read_sql(meta_q, conn, params=(schema, table))
+
+    # 2) construire un SELECT "safe"
+    safe_cols = []
+    for _, r in meta.iterrows():
+        col = r["column_name"]
+        typ = str(r["data_type"]).lower()
+        if typ in ("date", "timestamp without time zone", "timestamp with time zone"):
+            safe_cols.append(f'"{col}"::text AS "{col}"')
+        else:
+            safe_cols.append(f'"{col}"')
+
+    query = f'SELECT {", ".join(safe_cols)} FROM "{schema}"."{table}"'
     return pd.read_sql(query, conn)
 
 
@@ -2142,6 +2163,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
