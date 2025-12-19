@@ -296,7 +296,32 @@ def load_subs_for_project(project_id: int) -> pd.DataFrame:
     )
     return pd.read_sql(q, eng, params={"pid": int(project_id)})
 
+@st.cache_data(show_spinner=True)
+def load_invest_amounts_for_project(project_id: int) -> pd.DataFrame:
+    """
+    Montant investi total par email sur ce projet (pondération).
+    IMPORTANT : adapte le champ montant si besoin (amount, amount_cents, etc.)
+    """
+    eng = get_engine()
+    if eng is None:
+        return pd.DataFrame(columns=["email_normalized", "invest_amount_eur"])
 
+    q = text(
+        """
+        SELECT
+            lower(trim(u.email)) AS email_normalized,
+            SUM(s.amount) AS invest_amount_eur
+        FROM public.subscriptions s
+        JOIN public.users_profiles up ON up.id = s.users_profile_id
+        LEFT JOIN public.users u ON u.id = up.user_id
+        WHERE s.status <> 'canceled'
+          AND s.project_id = :pid
+          AND u.email IS NOT NULL
+        GROUP BY 1
+        """
+    )
+    return pd.read_sql(q, eng, params={"pid": int(project_id)})
+    
 # =============================================================================
 # 🔧 Matching Projet (Airtable → BO)
 # =============================================================================
@@ -1117,6 +1142,7 @@ def page_votes():
         if st.button("🔄 Purger caches Votes"):
             load_projects_df.clear()
             load_subs_for_project.clear()
+            load_invest_amounts_for_project.clear()
             st.success("Caches Votes vidés.")
             st.experimental_rerun()
 
@@ -1381,6 +1407,13 @@ def page_votes():
         ]
     ].rename(columns={"email_raw_example": "Adresse complète"})
 
+    # ===================== POIDS (€ investis) — INFORMATIONS =====================
+    weights_df = load_invest_amounts_for_project(project_id)
+    
+    final_tbl = final_tbl.merge(weights_df, on="email_normalized", how="left")
+    final_tbl["invest_amount_eur"] = final_tbl["invest_amount_eur"].fillna(0.0)
+
+
     n_votes = len(votes_clean)
     if not dups.empty:
         n_dups_total = int(dups["n_occur"].sum())
@@ -1517,6 +1550,52 @@ def page_votes():
             st.dataframe(df_pvr, use_container_width=True)
             fig_pvr = render_pie(df_pvr.set_index("Réponse"), "Pénalités")
             st.pyplot(fig_pvr, clear_figure=True)
+
+    # ===================== RÉSULTAT PRORATISÉ (INFORMATIF) =====================
+    st.markdown("---")
+    st.subheader("⚖️ Résultat proratisé (informatif) — pondéré par le montant investi (€)")
+    
+    def weighted_counts(df: pd.DataFrame, col_answer: str, col_weight: str = "invest_amount_eur"):
+        s = df[col_answer].fillna("Non renseigné").astype(str).str.strip()
+        tmp = pd.DataFrame({"Réponse": s, "Poids (€)": df[col_weight].fillna(0.0)})
+        out = tmp.groupby("Réponse", as_index=False)["Poids (€)"].sum()
+        total = float(out["Poids (€)"].sum())
+        out["%"] = ((out["Poids (€)"] / total) * 100).round(1) if total > 0 else 0.0
+        out = out.sort_values("Poids (€)", ascending=False)
+        return out, total
+    
+    def render_pie_weighted(df_counts: pd.DataFrame, title: str):
+        fig, ax = plt.subplots()
+        ax.pie(
+            df_counts["Poids (€)"],
+            labels=df_counts["Réponse"],
+            autopct="%1.1f%%",
+            startangle=90,
+        )
+        ax.set_title(title)
+        ax.axis("equal")
+        return fig
+    
+    col1w, col2w = st.columns(2)
+    
+    # Prolongation pondérée
+    if counts_pro is not None and "prolongation" in final_tbl.columns:
+        with col1w:
+            st.markdown("### Prolongation — pondéré (€ investis)")
+            df_w_pro, tot_w_pro = weighted_counts(final_tbl, "prolongation")
+            st.dataframe(df_w_pro, use_container_width=True)
+            st.caption(f"Total pondéré : {tot_w_pro:,.2f} €")
+            st.pyplot(render_pie_weighted(df_w_pro, "Prolongation (pondéré)"), clear_figure=True)
+    
+    # Pénalités / pouvoir pondéré
+    if counts_pvr is not None and "pouvoir" in final_tbl.columns:
+        with col2w:
+            st.markdown("### Pénalités — pondéré (€ investis)")
+            df_w_pvr, tot_w_pvr = weighted_counts(final_tbl, "pouvoir")
+            st.dataframe(df_w_pvr, use_container_width=True)
+            st.caption(f"Total pondéré : {tot_w_pvr:,.2f} €")
+            st.pyplot(render_pie_weighted(df_w_pvr, "Pénalités (pondéré)"), clear_figure=True)
+    
 
     # ================================ Verdict final ================================
     st.subheader("🧾 Verdict final")
@@ -2063,6 +2142,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
