@@ -2044,20 +2044,7 @@ def page_data_hub():
         👉 Si besoin, utiliser **des filtres forts** (project_id, dates, statut)  
         ou passer par un outil SQL dédié.
                 """
-            )
-
-
-        c_refresh, _ = st.columns([1, 5])
-        with c_refresh:
-            if st.button("🔄 Rafraîchir la page"):
-                list_pg_tables.clear()
-                read_pg_table.clear()
-                st.session_state.bo_df = None
-                st.session_state.bo_table_id = None
-                st.session_state.bo_tables_df = None
-                st.success("PostgreSQL rafraîchi.")
-                st.experimental_rerun()
-        
+            )        
 
         # Connexion & liste des tables
         try:
@@ -2112,7 +2099,17 @@ def page_data_hub():
         st.session_state.bo_table_id = selected_full
         schema, table = selected_full.split(".", 1)
 
-        if st.button("⚙️ Charger via Postgre"):
+        # --- boutons côte à côte (Charger / Rafraîchir) ---
+        b_load, b_refresh = st.columns([2, 1])
+        
+        with b_load:
+            load_clicked = st.button("⚙️ Charger via Postgre", use_container_width=True)
+        
+        with b_refresh:
+            if st.button("🔄 Rafraîchir", use_container_width=True):
+                st.rerun()  # équivalent Ctrl+R
+        
+        if load_clicked:
             try:
                 with st.spinner(f"Lecture de {schema}.{table}"):
                     df_bo = read_pg_table(schema, table)
@@ -2120,6 +2117,7 @@ def page_data_hub():
                 st.session_state.pop("bo_cols_multiselect", None)
             except Exception as e:
                 st.error(f"❌ Erreur lors de la lecture de la table : {e}")
+
 
         df_bo = st.session_state.bo_df
         if df_bo is None or df_bo.empty:
@@ -2264,6 +2262,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
