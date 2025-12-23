@@ -2012,6 +2012,53 @@ def page_data_hub():
         st.subheader("🗄 Back-office PostgreSQL")
         st.caption("Connexion en lecture au read-replica PostgreSQL de production.")
 
+        with st.expander("ℹ️ Aide — Exports & limites", expanded=False):
+            st.markdown(
+                """
+        **Comment fonctionnent les exports :**
+        
+        - Les exports sont **limités automatiquement** pour éviter les crashs (RAM Streamlit limitée).
+        - **CSV** :
+          - petit volume → **1 CSV**
+          - gros volume → **ZIP avec plusieurs CSV** (pagination automatique)
+        - **Excel** :
+          - export **limité** (fichiers Excel trop gros = plantage)
+        
+        Si un export est tronqué, un message s’affiche.
+        
+        ---
+        
+        **Fichiers CSV paginés (ZIP)**  
+        Quand un ZIP est généré, il contient plusieurs fichiers :
+        `export_001.csv`, `export_002.csv`, etc.  
+        ➡️ Ils peuvent être **fusionnés facilement** en local (Python / Excel PowerQuery).
+        
+        ---
+        
+        ⚠️ **Tables à éviter absolument (trop volumineuses)**  
+        Ces tables peuvent faire planter Streamlit même en lecture :
+        - `subscriptions`
+        - `payment_operations`
+        - `loans_terms`
+        
+        👉 Si besoin, utiliser **des filtres forts** (project_id, dates, statut)  
+        ou passer par un outil SQL dédié.
+                """
+            )
+
+
+        c_refresh, _ = st.columns([1, 5])
+        with c_refresh:
+            if st.button("🔄 Rafraîchir la page"):
+                list_pg_tables.clear()
+                read_pg_table.clear()
+                st.session_state.bo_df = None
+                st.session_state.bo_table_id = None
+                st.session_state.bo_tables_df = None
+                st.success("PostgreSQL rafraîchi.")
+                st.experimental_rerun()
+        
+
         # Connexion & liste des tables
         try:
             with st.spinner("Connexion à PostgreSQL et récupération des tables…"):
@@ -2217,6 +2264,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
