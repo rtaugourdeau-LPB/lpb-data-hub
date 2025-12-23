@@ -30,6 +30,9 @@ st.set_page_config(
 
 # Date du jour pour les exports
 TODAY_STR = datetime.now().strftime("%Y-%m-%d")
+MAX_ROWS_EXPORT = 1_000_000      # limite globale (pour CSV/ZIP et Excel)
+ROWS_PER_CSV_FILE = 200_000      # lignes max par fichier CSV dans le ZIP
+MAX_ROWS_EXCEL = 200_000         # limite stricte pour Excel (évite les xlsx énormes)
 
 # ============================================================
 # 🔐 CONFIG VIA st.secrets (Streamlit)
@@ -769,6 +772,19 @@ def df_to_csv_bytes(df: pd.DataFrame):
     csv_str = df.to_csv(index=False, sep=";", encoding="utf-8-sig")
     return csv_str.encode("utf-8-sig")
 
+def chunk_df_to_zip_csv_bytes(df: pd.DataFrame, rows_per_file: int, base_name: str) -> bytes:
+    """Découpe un DF en plusieurs CSV et renvoie un ZIP (bytes)."""
+    out = BytesIO()
+    with zipfile.ZipFile(out, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+        n = len(df)
+        n_files = max(1, math.ceil(n / rows_per_file))
+        for i in range(n_files):
+            start = i * rows_per_file
+            end = min((i + 1) * rows_per_file, n)
+            chunk = df.iloc[start:end]
+            csv_bytes = df_to_csv_bytes(chunk)
+            zf.writestr(f"{base_name}_{i+1:03d}.csv", csv_bytes)
+    return out.getvalue()
 
 # =============================================================================
 # 🔧 FONCTIONS NOTION (Data Hub)
@@ -1843,29 +1859,41 @@ def page_data_hub():
                     key="imp_table",
                 )
 
-                csv_name_imp = f"{TODAY_STR}_notion_export.csv"
+                # ✅ limiter export (global)
+                df_export_imp = edited_df_imp.head(MAX_ROWS_EXPORT).copy()
+                
+                # CSV : si gros => ZIP en plusieurs CSV
+                csv_is_chunked_imp = len(df_export_imp) > ROWS_PER_CSV_FILE
+                if csv_is_chunked_imp:
+                    zip_name_imp = f"{TODAY_STR}_notion_export_csv.zip"
+                    zip_bytes_imp = chunk_df_to_zip_csv_bytes(
+                        df_export_imp,
+                        rows_per_file=ROWS_PER_CSV_FILE,
+                        base_name=f"{TODAY_STR}_notion_export",
+                    )
+                else:
+                    csv_name_imp = f"{TODAY_STR}_notion_export.csv"
+                    csv_bytes_imp = df_to_csv_bytes(df_export_imp)
+                
+                # Excel : limite stricte
+                df_excel_imp = df_export_imp.head(MAX_ROWS_EXCEL).copy()
                 xlsx_name_imp = f"{TODAY_STR}_notion_export.xlsx"
-
-                csv_bytes_imp = df_to_csv_bytes(edited_df_imp)
-                excel_bytes_imp = df_to_excel_bytes(
-                    edited_df_imp, sheet_name="ExportNotion"
-                )
-
+                excel_bytes_imp = df_to_excel_bytes(df_excel_imp, sheet_name="ExportNotion")
+                
                 c1, c2 = st.columns(2)
                 with c1:
-                    st.download_button(
-                        "📥 Télécharger CSV",
-                        data=csv_bytes_imp,
-                        file_name=csv_name_imp,
-                        mime="text/csv",
-                    )
+                    if csv_is_chunked_imp:
+                        st.download_button("📥 Télécharger CSV", data=zip_bytes_imp, file_name=zip_name_imp, mime="application/zip")
+                    else:
+                        st.download_button("📥 Télécharger CSV", data=csv_bytes_imp, file_name=csv_name_imp, mime="text/csv")
+                
                 with c2:
-                    st.download_button(
-                        "📥 Télécharger Excel",
-                        data=excel_bytes_imp,
-                        file_name=xlsx_name_imp,
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    )
+                    st.download_button("📥 Télécharger Excel", data=excel_bytes_imp, file_name=xlsx_name_imp,
+                                       mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                
+                if len(edited_df_imp) > MAX_ROWS_EXPORT:
+                    st.warning(f"⚠️ Export tronqué : {MAX_ROWS_EXPORT:,} premières lignes sur {len(edited_df_imp):,}.")
+
 
         # ---------- Mode API ----------
         with tab_api:
@@ -1942,29 +1970,42 @@ def page_data_hub():
                 )
 
                 base_slug = base_choisie.replace(" ", "_").lower()
-                csv_name = f"{TODAY_STR}_notion_api_{base_slug}.csv"
+
+                # ✅ limiter export (global)
+                df_export_api = edited_df.head(MAX_ROWS_EXPORT).copy()
+                
+                # CSV : si gros => ZIP en plusieurs CSV
+                csv_is_chunked_api = len(df_export_api) > ROWS_PER_CSV_FILE
+                if csv_is_chunked_api:
+                    zip_name = f"{TODAY_STR}_notion_api_{base_slug}_csv.zip"
+                    zip_bytes = chunk_df_to_zip_csv_bytes(
+                        df_export_api,
+                        rows_per_file=ROWS_PER_CSV_FILE,
+                        base_name=f"{TODAY_STR}_notion_api_{base_slug}",
+                    )
+                else:
+                    csv_name = f"{TODAY_STR}_notion_api_{base_slug}.csv"
+                    csv_bytes = df_to_csv_bytes(df_export_api)
+                
+                # Excel : limite stricte
+                df_excel_api = df_export_api.head(MAX_ROWS_EXCEL).copy()
                 xlsx_name = f"{TODAY_STR}_notion_api_{base_slug}.xlsx"
-
-                csv_bytes = df_to_csv_bytes(edited_df)
-                excel_bytes = df_to_excel_bytes(
-                    edited_df, sheet_name=base_choisie[:31]
-                )
-
+                excel_bytes = df_to_excel_bytes(df_excel_api, sheet_name=base_choisie[:31])
+                
                 c1, c2 = st.columns(2)
                 with c1:
-                    st.download_button(
-                        "📥 Télécharger CSV",
-                        data=csv_bytes,
-                        file_name=csv_name,
-                        mime="text/csv",
-                    )
+                    if csv_is_chunked_api:
+                        st.download_button("📥 Télécharger CSV", data=zip_bytes, file_name=zip_name, mime="application/zip")
+                    else:
+                        st.download_button("📥 Télécharger CSV", data=csv_bytes, file_name=csv_name, mime="text/csv")
+                
                 with c2:
-                    st.download_button(
-                        "📥 Télécharger Excel",
-                        data=excel_bytes,
-                        file_name=xlsx_name,
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    )
+                    st.download_button("📥 Télécharger Excel", data=excel_bytes, file_name=xlsx_name,
+                                       mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                
+                if len(edited_df) > MAX_ROWS_EXPORT:
+                    st.warning(f"⚠️ Export tronqué : {MAX_ROWS_EXPORT:,} premières lignes sur {len(edited_df):,}.")
+
 
     # ============================ BACK-OFFICE ============================
     elif section == "Back-office":
@@ -2082,29 +2123,42 @@ def page_data_hub():
             )
 
             safe_table_name = selected_label.replace(".", "_")
-            csv_name_bo = f"{TODAY_STR}_{safe_table_name}.csv"
+
+            # ✅ limiter export (global)
+            df_export_bo = edited_bo.head(MAX_ROWS_EXPORT).copy()
+            
+            # CSV : si gros => ZIP en plusieurs CSV
+            csv_is_chunked_bo = len(df_export_bo) > ROWS_PER_CSV_FILE
+            if csv_is_chunked_bo:
+                zip_name_bo = f"{TODAY_STR}_{safe_table_name}_csv.zip"
+                zip_bytes_bo = chunk_df_to_zip_csv_bytes(
+                    df_export_bo,
+                    rows_per_file=ROWS_PER_CSV_FILE,
+                    base_name=f"{TODAY_STR}_{safe_table_name}",
+                )
+            else:
+                csv_name_bo = f"{TODAY_STR}_{safe_table_name}.csv"
+                csv_bytes_bo = df_to_csv_bytes(df_export_bo)
+            
+            # Excel : limite stricte
+            df_excel_bo = df_export_bo.head(MAX_ROWS_EXCEL).copy()
             xlsx_name_bo = f"{TODAY_STR}_{safe_table_name}.xlsx"
-
-            csv_bytes_bo = df_to_csv_bytes(edited_bo)
-            excel_bytes_bo = df_to_excel_bytes(
-                edited_bo, sheet_name=safe_table_name[:31]
-            )
-
+            excel_bytes_bo = df_to_excel_bytes(df_excel_bo, sheet_name=safe_table_name[:31])
+            
             c1, c2 = st.columns(2)
             with c1:
-                st.download_button(
-                    "📥 Télécharger CSV",
-                    data=csv_bytes_bo,
-                    file_name=csv_name_bo,
-                    mime="text/csv",
-                )
+                if csv_is_chunked_bo:
+                    st.download_button("📥 Télécharger CSV", data=zip_bytes_bo, file_name=zip_name_bo, mime="application/zip")
+                else:
+                    st.download_button("📥 Télécharger CSV", data=csv_bytes_bo, file_name=csv_name_bo, mime="text/csv")
+            
             with c2:
-                st.download_button(
-                    "📥 Télécharger Excel",
-                    data=excel_bytes_bo,
-                    file_name=xlsx_name_bo,
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                )
+                st.download_button("📥 Télécharger Excel", data=excel_bytes_bo, file_name=xlsx_name_bo,
+                                   mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            
+            if len(edited_bo) > MAX_ROWS_EXPORT:
+                st.warning(f"⚠️ Export tronqué : {MAX_ROWS_EXPORT:,} premières lignes sur {len(edited_bo):,}.")
+
 # =============================================================================
 # 📄 MODULE 3/4 : Autres pages
 # =============================================================================
@@ -2163,6 +2217,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
