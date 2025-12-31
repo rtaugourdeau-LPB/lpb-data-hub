@@ -1,4 +1,3 @@
-import os
 import re
 import time
 import csv
@@ -650,250 +649,42 @@ def build_votes_email_flags(
 # =============================================================================
 # 🔧 FONCTIONS EXPORT (Data Hub)
 # =============================================================================
-def normalize_dates_ddmmyyyy(df: pd.DataFrame, datetime_with_time: bool = False) -> pd.DataFrame:
+
+def df_to_excel_bytes(df: pd.DataFrame, sheet_name: str = "Data"):
     """
-    Convertit toutes les colonnes détectées comme dates/datetimes en texte :
-    - date -> dd/mm/yyyy
-    - datetime -> dd/mm/yyyy hh:mm:ss (si datetime_with_time=True)
-                sinon dd/mm/yyyy (si datetime_with_time=False)
-    Gère ISO + FR chiffres + FR mois en lettres.
-    """
-    out = df.copy()
-
-    FR_MONTHS = {
-        "janvier": "01", "janv": "01", "janv.": "01",
-        "février": "02", "fevrier": "02", "févr": "02", "fevr": "02", "févr.": "02", "fevr.": "02",
-        "mars": "03",
-        "avril": "04", "avr": "04", "avr.": "04",
-        "mai": "05",
-        "juin": "06",
-        "juillet": "07", "juil": "07", "juil.": "07",
-        "août": "08", "aout": "08",
-        "septembre": "09", "sept": "09", "sept.": "09",
-        "octobre": "10", "oct": "10", "oct.": "10",
-        "novembre": "11", "nov": "11", "nov.": "11",
-        "décembre": "12", "decembre": "12", "déc": "12", "dec": "12", "déc.": "12", "dec.": "12",
-    }
-
-    def normalize_french_word_dates(series: pd.Series) -> pd.Series:
-        s = series.astype(str).str.strip().str.lower()
-        s = s.str.replace(r"\s+", " ", regex=True)
-        for k, mm in FR_MONTHS.items():
-            if "." in k:
-                s = s.str.replace(rf"(?<!\w){re.escape(k)}(?!\w)", f"/{mm}/", regex=True)
-            else:
-                s = s.str.replace(rf"\b{re.escape(k)}\b", f"/{mm}/", regex=True)
-        s = s.str.replace(r"\s*/\s*", "/", regex=True)
-        s = s.str.replace(r"^(\d{1})/", r"0\1/", regex=True)
-        return s
-
-    def try_parse(series: pd.Series) -> pd.Series:
-        s = series.astype(str).str.strip()
-        # normaliser séparateurs 05-11-2027 / 05.11.2027 -> 05/11/2027
-        s = s.str.replace(r"[-\.]", "/", regex=True)
-        s = normalize_french_word_dates(s)
-        # parse dayfirst (FR)
-        return pd.to_datetime(s, errors="coerce", dayfirst=True)
-    
-    def _non_empty_str(series: pd.Series) -> pd.Series:
-        s = series.astype(str).str.strip()
-        # enlève les "vides" et artefacts de cast en str
-        s = s[(s != "") & (s.str.lower() != "nan") & (s.str.lower() != "none")]
-        return s
-
-    def _ratio_match_non_empty(series: pd.Series, pattern: str) -> float:
-        s = _non_empty_str(series)
-        if s.empty:
-            return 0.0
-        return s.str.match(pattern, na=False).mean()
-
-    def looks_dateish(sample: pd.Series) -> bool:
-        # ISO date/datetime
-        if _ratio_match_non_empty(sample, r"^\d{4}-\d{2}-\d{2}(\s+\d{2}:\d{2}:\d{2})?$") > 0.4:
-            return True
-        # FR chiffres
-        if _ratio_match_non_empty(sample, r"^\d{1,2}[/\-\.]\d{1,2}[/\-\.]\d{4}(\s+\d{1,2}:\d{2}(:\d{2})?)?$") > 0.4:
-            return True
-        # FR mots
-        if _ratio_match_non_empty(
-            sample,
-            r"^\d{1,2}\s+(janvier|janv\.?|février|fevrier|févr\.?|fevr\.?|mars|avril|avr\.?|mai|juin|juillet|juil\.?|août|aout|septembre|sept\.?|octobre|oct\.?|novembre|nov\.?|décembre|decembre|déc\.?|dec\.?)\s+\d{4}$",
-        ) > 0.4:
-            return True
-        return False
-
-
-    for col in out.columns:
-        s = out[col]
-
-        # déjà datetime pandas
-        if pd.api.types.is_datetime64_any_dtype(s):
-            if datetime_with_time and (
-                ~(s.dt.hour.fillna(0).eq(0) & s.dt.minute.fillna(0).eq(0) & s.dt.second.fillna(0).eq(0))
-            ).any():
-                out[col] = s.dt.strftime("%d/%m/%Y %H:%M:%S")
-            else:
-                out[col] = s.dt.strftime("%d/%m/%Y")
-            continue
-
-        # tenter parse sur colonnes texte
-        if pd.api.types.is_object_dtype(s) or pd.api.types.is_string_dtype(s):
-            sample = s.head(2000)
-            if not looks_dateish(sample):
-                continue
-
-            dt = try_parse(s)
-
-            s_ne = _non_empty_str(s)
-            if s_ne.empty:
-                continue
-
-            # on mesure la "qualité" du parsing sur les valeurs non vides seulement
-            dt_ne = try_parse(s_ne)
-            if dt_ne.notna().mean() < 0.6:
-                continue
-
-
-            has_time = s.astype(str).str.contains(r"\d{1,2}:\d{2}", na=False).mean() > 0.2
-            if datetime_with_time and has_time:
-                out[col] = dt.dt.strftime("%d/%m/%Y %H:%M:%S")
-            else:
-                out[col] = dt.dt.strftime("%d/%m/%Y")
-
-    return out
-
-def df_to_excel_bytes(df: pd.DataFrame, sheet_name: str = "Data") -> bytes:
-    """
-    Export Excel robuste :
-    - Parse dates/datetimes en vrais types datetime (Excel-friendly)
-    - Applique formats Excel dd/mm/yyyy et dd/mm/yyyy hh:mm
-    - Protège contre Excel injection (= + - @) sur colonnes texte
-    - Force certaines colonnes en texte (url/id/email/phone/etc)
+    Export propre vers Excel :
+    - Table structurée avec style
+    - Largeur de colonnes auto
+    - Ligne d’en-tête figée
+    - Filtres auto
+    - Hyperliens désactivés
     """
     out = BytesIO()
     df_export = df.copy()
 
-    # -------------------------
-    # 0) Helpers
-    # -------------------------
-    def _is_nan(x) -> bool:
-        return isinstance(x, float) and math.isnan(x)
-
-    def _to_excel_safe_text(v):
-        if v is None or _is_nan(v):
-            return None
-        sv = str(v)
-        if sv.startswith(("=", "+", "-", "@")):
-            sv = "'" + sv
-        # on neutralise aussi les URLs pour éviter auto-link / surprises
-        if sv.startswith(("http://", "https://", "www.")):
-            sv = "'" + sv
-        return sv
-
-    # Colonnes à forcer en texte
+    # Colonnes plutôt texte
     text_col_keywords = (
-        "url", "link", "href",
-        "file", "image", "img", "path",
-        "uuid", "token", "hash",
-        "id", "code", "ref", "reference",
-        "email", "mail",
-        "phone", "tel",
+        "url",
+        "link",
+        "href",
+        "file",
+        "image",
+        "img",
+        "path",
+        "uuid",
+        "token",
+        "hash",
+        "id",
+        "code",
+        "ref",
+        "reference",
+        "email",
+        "mail",
+        "phone",
+        "tel",
     )
 
-    # -------------------------
-    # 1) Détection + parsing dates (en VRAI datetime)
-    # -------------------------
-    def _non_empty_str(series: pd.Series) -> pd.Series:
-        s = series.astype(str).str.strip()
-        s = s[(s != "") & (~s.str.lower().isin(["nan", "none", "null"]))]
-        return s
-
-    FR_MONTHS = {
-        "janvier": "01", "janv": "01", "janv.": "01",
-        "février": "02", "fevrier": "02", "févr": "02", "fevr": "02", "févr.": "02", "fevr.": "02",
-        "mars": "03",
-        "avril": "04", "avr": "04", "avr.": "04",
-        "mai": "05",
-        "juin": "06",
-        "juillet": "07", "juil": "07", "juil.": "07",
-        "août": "08", "aout": "08",
-        "septembre": "09", "sept": "09", "sept.": "09",
-        "octobre": "10", "oct": "10", "oct.": "10",
-        "novembre": "11", "nov": "11", "nov.": "11",
-        "décembre": "12", "decembre": "12", "déc": "12", "dec": "12", "déc.": "12", "dec.": "12",
-    }
-
-    def _normalize_french_word_dates(s: pd.Series) -> pd.Series:
-        x = s.astype(str).str.strip().str.lower()
-        x = x.str.replace(r"\s+", " ", regex=True)
-        for k, mm in FR_MONTHS.items():
-            if "." in k:
-                x = x.str.replace(rf"(?<!\w){re.escape(k)}(?!\w)", f"/{mm}/", regex=True)
-            else:
-                x = x.str.replace(rf"\b{re.escape(k)}\b", f"/{mm}/", regex=True)
-        x = x.str.replace(r"\s*/\s*", "/", regex=True)
-        x = x.str.replace(r"^(\d{1})/", r"0\1/", regex=True)
-        return x
-
-    date_cols, datetime_cols = [], []
-
     for col in df_export.columns:
-        s = df_export[col]
-
-        # déjà datetime
-        if pd.api.types.is_datetime64_any_dtype(s):
-            datetime_cols.append(col)
-            continue
-
-        # uniquement si texte
-        if not (pd.api.types.is_object_dtype(s) or pd.api.types.is_string_dtype(s)):
-            continue
-
-        s_ne = _non_empty_str(s)
-        if s_ne.empty:
-            continue
-
-        sample = s_ne.head(2000)
-
-        # Heuristique simple : si une bonne partie ressemble à une date
-        looks_date = sample.str.match(r"^\d{1,2}[/\-\.]\d{1,2}[/\-\.]\d{4}(\s+\d{1,2}:\d{2}(:\d{2})?)?$", na=False).mean() > 0.4
-        looks_iso  = sample.str.match(r"^\d{4}-\d{2}-\d{2}([ T]\d{2}:\d{2}(:\d{2})?(\.\d+)?)?(Z)?$", na=False).mean() > 0.4
-        looks_words = sample.str.lower().str.match(
-            r"^\d{1,2}\s+(janvier|janv\.?|février|fevrier|févr\.?|fevr\.?|mars|avril|avr\.?|mai|juin|juillet|juil\.?|août|aout|septembre|sept\.?|octobre|oct\.?|novembre|nov\.?|décembre|decembre|déc\.?|dec\.?)\s+\d{4}$",
-            na=False
-        ).mean() > 0.4
-
-        if not (looks_date or looks_iso or looks_words):
-            continue
-
-        # Normalisation pour parser
-        s_str = s.astype(str).str.strip()
-        s_str = s_str.str.replace(r"[-\.]", "/", regex=True)
-        s_str = _normalize_french_word_dates(s_str)
-
-        dt = pd.to_datetime(s_str, errors="coerce", dayfirst=True, utc=True).dt.tz_convert(None)
-
-        # si parsing OK sur une majorité des non-vides, on garde
-        dt_ne = pd.to_datetime(_normalize_french_word_dates(sample.str.replace(r"[-\.]", "/", regex=True)), errors="coerce", dayfirst=True)
-        if dt_ne.notna().mean() < 0.6:
-            continue
-
-        df_export[col] = dt
-
-        # datetime vs date
-        has_time = s.astype(str).str.contains(r"\d{1,2}:\d{2}", na=False).mean() > 0.2
-        if has_time:
-            datetime_cols.append(col)
-        else:
-            date_cols.append(col)
-
-    # -------------------------
-    # 2) Sanitize colonnes texte (sans casser les dates)
-    # -------------------------
-    for col in df_export.columns:
-        if col in date_cols or col in datetime_cols:
-            continue
-
         s = df_export[col]
         if not (pd.api.types.is_object_dtype(s) or pd.api.types.is_string_dtype(s)):
             continue
@@ -902,54 +693,82 @@ def df_to_excel_bytes(df: pd.DataFrame, sheet_name: str = "Data") -> bytes:
         force_text = any(k in col_lower for k in text_col_keywords)
 
         s_str = s.astype(str)
-        url_like = s_str.str.startswith(("http://", "https://", "www."), na=False).mean() > 0.1
-        email_like = s_str.str.contains("@", na=False).mean() > 0.3
 
-        if url_like or email_like:
+        url_like = s_str.str.startswith(("http://", "https://", "www."))
+        email_like = s_str.str.contains("@", na=False)
+        long_like = s_str.str.len() > 120
+
+        if url_like.mean() > 0.1 or email_like.mean() > 0.3 or long_like.mean() > 0.3:
             force_text = True
 
+        def to_excel_safe(v):
+            # ⛔️ ne pas utiliser pd.isna ici (problème avec les arrays)
+            if v is None or (isinstance(v, float) and math.isnan(v)):
+                return None
+            sv = str(v)
+            if sv.startswith(("=", "+", "-", "@")):
+                sv = "'" + sv
+            if sv.startswith(("http://", "https://", "www.")):
+                sv = "'" + sv
+            return sv
+
         if force_text:
-            df_export[col] = s.map(_to_excel_safe_text)
+            df_export[col] = s_str.map(to_excel_safe)
         else:
-            # injection guard minimal
-            df_export[col] = s.map(lambda v: _to_excel_safe_text(v) if isinstance(v, str) and v.startswith(("=", "+", "-", "@")) else v)
+            def sanitize(v):
+                # ⛔️ idem : uniquement scalaires
+                if v is None or (isinstance(v, float) and math.isnan(v)):
+                    return None
+                sv = v
+                if isinstance(sv, str):
+                    if sv.startswith(("=", "+", "-", "@")):
+                        sv = "'" + sv
+                    if sv.startswith(("http://", "https://", "www.")) and len(sv) > 255:
+                        sv = "'" + sv
+                return sv
 
-    # -------------------------
-    # 3) Ecriture + formats Excel
-    # -------------------------
-    safe_sheet_name = (sheet_name or "Data")[:31].replace(":", " ").replace("/", " ")
+            df_export[col] = s.map(sanitize)
 
-    with pd.ExcelWriter(out, engine="xlsxwriter", datetime_format="dd/mm/yyyy hh:mm", date_format="dd/mm/yyyy") as writer:
-        df_export.to_excel(writer, index=False, sheet_name=safe_sheet_name)
-
+    with pd.ExcelWriter(out, engine="xlsxwriter") as writer:
+        df_export.to_excel(writer, index=False, sheet_name=sheet_name)
         workbook = writer.book
-        worksheet = writer.sheets[safe_sheet_name]
+        worksheet = writer.sheets[sheet_name]
+        n_rows, n_cols = df_export.shape
 
-        date_format = workbook.add_format({"num_format": "dd/mm/yyyy"})
-        datetime_format = workbook.add_format({"num_format": "dd/mm/yyyy hh:mm"})
-
-        cols_list = list(df_export.columns)
-
-        for col_name in date_cols:
-            col_idx = cols_list.index(col_name)
-            worksheet.set_column(col_idx, col_idx, 12, date_format)      # dd/mm/yyyy = 10 + marge
-        
-        for col_name in datetime_cols:
-            col_idx = cols_list.index(col_name)
-            worksheet.set_column(col_idx, col_idx, 20, datetime_format)  # dd/mm/yyyy hh:mm = 16 + marge
+        # Largeur de colonnes auto
+        for col_idx, col_name in enumerate(df_export.columns):
+            col_series = df_export[col_name].astype(str).fillna("")
+            sample = col_series.head(500)
+            max_len_value = sample.map(len).max() if not sample.empty else 0
+            max_len = max(len(str(col_name)), max_len_value)
+            base_width = min(max_len + 2, 60)
+            width = base_width + 4
+            worksheet.set_column(col_idx, col_idx, width)
 
         worksheet.freeze_panes(1, 0)
+
+        if n_cols > 0:
+            table_columns = [{"header": str(col)} for col in df_export.columns]
+            worksheet.add_table(
+                0,
+                0,
+                n_rows,
+                n_cols - 1,
+                {
+                    "columns": table_columns,
+                    "style": "Table Style Medium 2",
+                    "autofilter": True,
+                },
+            )
+
         worksheet.set_zoom(100)
 
     return out.getvalue()
 
 
-
-
 def df_to_csv_bytes(df: pd.DataFrame):
-    """Export CSV compatible Notion + Excel FR : dates en dd/mm/yyyy."""
-    df_export = normalize_dates_ddmmyyyy(df, datetime_with_time=False)
-    csv_str = df_export.to_csv(index=False, sep=";", encoding="utf-8-sig")
+    """Export CSV simple, compatible Excel FR."""
+    csv_str = df.to_csv(index=False, sep=";", encoding="utf-8-sig")
     return csv_str.encode("utf-8-sig")
 
 def chunk_df_to_zip_csv_bytes(df: pd.DataFrame, rows_per_file: int, base_name: str) -> bytes:
@@ -2442,12 +2261,6 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
 
 
 
