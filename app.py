@@ -932,11 +932,11 @@ def df_to_excel_bytes(df: pd.DataFrame, sheet_name: str = "Data") -> bytes:
 
         for col_name in date_cols:
             col_idx = cols_list.index(col_name)
-            worksheet.set_column(col_idx, col_idx, None, date_format)
-
+            worksheet.set_column(col_idx, col_idx, 12, date_format)      # dd/mm/yyyy = 10 + marge
+        
         for col_name in datetime_cols:
             col_idx = cols_list.index(col_name)
-            worksheet.set_column(col_idx, col_idx, None, datetime_format)
+            worksheet.set_column(col_idx, col_idx, 20, datetime_format)  # dd/mm/yyyy hh:mm = 16 + marge
 
         worksheet.freeze_panes(1, 0)
         worksheet.set_zoom(100)
@@ -2442,6 +2442,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
