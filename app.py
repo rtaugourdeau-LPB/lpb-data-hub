@@ -2234,7 +2234,7 @@ def page_rendements():
 def page_docs():
     st.title("📄 Listing des dashboards BI")
 
-    GOOGLE_DOC_URL = "https://docs.google.com/document/d/XXXXXXXXXXXXX/edit"  # <-- mets ton lien
+    GOOGLE_DOC_URL = "https://docs.google.com/document/d/129lJRvAsvrxj4P2L_bN5zfhMeF5aXm0YV5wSJ6yLOT8/edit?tab=t.0"
 
     st.markdown(
         f"""
@@ -2260,7 +2260,7 @@ def main():
                 "Vérification des votes Airtable",
                 "Préqual + Emailing + Scoring ML",
                 "Comparaison des rendements actifs",
-                "Documentation (Google Doc)",
+                "Listing des dashboards BI",
             ],
             index=0,
         )
@@ -2271,13 +2271,14 @@ def main():
         page_prequalification()
     elif app_choice == "Comparaison des rendements actifs":
         page_rendements()
-    elif app_choice == "Documentation (Google Doc)":
+    elif app_choice == "Listing des dashboards BI":
         page_docs()
     else:
         page_data_hub()
 
 if __name__ == "__main__":
     main()
+
 
 
 
