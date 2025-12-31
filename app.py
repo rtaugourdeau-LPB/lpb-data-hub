@@ -694,22 +694,34 @@ def normalize_dates_ddmmyyyy(df: pd.DataFrame, datetime_with_time: bool = False)
         s = normalize_french_word_dates(s)
         # parse dayfirst (FR)
         return pd.to_datetime(s, errors="coerce", dayfirst=True)
+    
+    def _non_empty_str(series: pd.Series) -> pd.Series:
+        s = series.astype(str).str.strip()
+        # enlève les "vides" et artefacts de cast en str
+        s = s[(s != "") & (s.str.lower() != "nan") & (s.str.lower() != "none")]
+        return s
+
+    def _ratio_match_non_empty(series: pd.Series, pattern: str) -> float:
+        s = _non_empty_str(series)
+        if s.empty:
+            return 0.0
+        return s.str.match(pattern, na=False).mean()
 
     def looks_dateish(sample: pd.Series) -> bool:
-        sample = sample.astype(str).str.strip()
         # ISO date/datetime
-        if sample.str.match(r"^\d{4}-\d{2}-\d{2}(\s+\d{2}:\d{2}:\d{2})?$", na=False).mean() > 0.4:
+        if _ratio_match_non_empty(sample, r"^\d{4}-\d{2}-\d{2}(\s+\d{2}:\d{2}:\d{2})?$") > 0.4:
             return True
         # FR chiffres
-        if sample.str.match(r"^\d{1,2}[/\-\.]\d{1,2}[/\-\.]\d{4}(\s+\d{1,2}:\d{2}(:\d{2})?)?$", na=False).mean() > 0.4:
+        if _ratio_match_non_empty(sample, r"^\d{1,2}[/\-\.]\d{1,2}[/\-\.]\d{4}(\s+\d{1,2}:\d{2}(:\d{2})?)?$") > 0.4:
             return True
         # FR mots
-        if sample.str.match(
+        if _ratio_match_non_empty(
+            sample,
             r"^\d{1,2}\s+(janvier|janv\.?|février|fevrier|févr\.?|fevr\.?|mars|avril|avr\.?|mai|juin|juillet|juil\.?|août|aout|septembre|sept\.?|octobre|oct\.?|novembre|nov\.?|décembre|decembre|déc\.?|dec\.?)\s+\d{4}$",
-            na=False
-        ).mean() > 0.4:
+        ) > 0.4:
             return True
         return False
+
 
     for col in out.columns:
         s = out[col]
@@ -731,8 +743,16 @@ def normalize_dates_ddmmyyyy(df: pd.DataFrame, datetime_with_time: bool = False)
                 continue
 
             dt = try_parse(s)
-            if dt.notna().mean() < 0.6:
+
+            s_ne = _non_empty_str(s)
+            if s_ne.empty:
                 continue
+
+            # on mesure la "qualité" du parsing sur les valeurs non vides seulement
+            dt_ne = try_parse(s_ne)
+            if dt_ne.notna().mean() < 0.6:
+                continue
+
 
             has_time = s.astype(str).str.contains(r"\d{1,2}:\d{2}", na=False).mean() > 0.2
             if datetime_with_time and has_time:
@@ -2503,6 +2523,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
