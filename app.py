@@ -2231,6 +2231,18 @@ def page_rendements():
         """
     )
 
+def page_docs():
+    st.title("📄 Documentation")
+    st.caption("Liens utiles / procédures / specs.")
+
+    GOOGLE_DOC_URL = "https://docs.google.com/document/d/XXXXXXXXXXXXX/edit"  # <-- mets ton lien
+
+    # Option 1 : bouton (propre)
+    st.link_button("📄 Ouvrir le Google Doc", GOOGLE_DOC_URL)
+
+    # Option 2 : lien markdown (si tu préfères)
+    st.markdown(f"🔗 **Google Doc :** [{GOOGLE_DOC_URL}]({GOOGLE_DOC_URL})")
+
 # =============================================================================
 # 🧭 ROUTAGE PRINCIPAL
 # =============================================================================
@@ -2238,13 +2250,15 @@ def page_rendements():
 def main():
     with st.sidebar:
         st.markdown("## 🧱 Outils Data LPB")
+
         app_choice = st.radio(
             "Choix de l’outil",
             [
                 "Data Hub (BO/Notion)",
                 "Vérification des votes Airtable",
                 "Préqual + Emailing + Scoring ML",
-                "Comparaison des rendements actifs"
+                "Comparaison des rendements actifs",
+                "Documentation (Google Doc)",  # ✅ NEW
             ],
             index=0,
         )
@@ -2255,12 +2269,14 @@ def main():
         page_prequalification()
     elif app_choice == "Comparaison des rendements actifs":
         page_rendements()
+    elif app_choice == "Documentation (Google Doc)":
+        page_docs()  # ✅ NEW
     else:
         page_data_hub()
 
-
 if __name__ == "__main__":
     main()
+
 
 
 
