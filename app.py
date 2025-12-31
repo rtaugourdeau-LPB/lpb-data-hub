@@ -651,41 +651,106 @@ def build_votes_email_flags(
 # 🔧 FONCTIONS EXPORT (Data Hub)
 # =============================================================================
 
-def df_to_excel_bytes(df: pd.DataFrame, sheet_name: str = "Data"):
+def df_to_excel_bytes(df: pd.DataFrame, sheet_name: str = "Data") -> bytes:
     """
     Export propre vers Excel :
     - Table structurée avec style
     - Largeur de colonnes auto
     - Ligne d’en-tête figée
     - Filtres auto
-    - Hyperliens désactivés
+    - Protection CSV/Excel injection (= + - @ en début)
+    - URLs et valeurs "à risque" forcées en texte (pas d’hyperliens auto)
+    - Détection + formatage des colonnes dates/datetimes (ISO)
     """
     out = BytesIO()
     df_export = df.copy()
 
-    # Colonnes plutôt texte
+    # -------------------------
+    # 0) Helpers
+    # -------------------------
+    def _is_nan(x) -> bool:
+        return isinstance(x, float) and math.isnan(x)
+
+    def _to_excel_safe_text(v):
+        """
+        - neutralise formules (= + - @) -> prefixe '
+        - neutralise URLs -> prefixe '
+        - garde None si None/NaN
+        """
+        if v is None or _is_nan(v):
+            return None
+        sv = str(v)
+        if sv.startswith(("=", "+", "-", "@")):
+            sv = "'" + sv
+        if sv.startswith(("http://", "https://", "www.")):
+            sv = "'" + sv
+        return sv
+
+    def _sanitize_mixed(v):
+        """
+        Pour colonnes non forcées en texte :
+        - neutralise formules (= + - @) pour les strings
+        - neutralise très longues URLs (Excel limite pratique)
+        """
+        if v is None or _is_nan(v):
+            return None
+        if isinstance(v, str):
+            if v.startswith(("=", "+", "-", "@")):
+                v = "'" + v
+            if v.startswith(("http://", "https://", "www.")) and len(v) > 255:
+                v = "'" + v
+        return v
+
+    # -------------------------
+    # 1) Détection colonnes "texte" (à forcer en texte)
+    # -------------------------
     text_col_keywords = (
-        "url",
-        "link",
-        "href",
-        "file",
-        "image",
-        "img",
-        "path",
-        "uuid",
-        "token",
-        "hash",
-        "id",
-        "code",
-        "ref",
-        "reference",
-        "email",
-        "mail",
-        "phone",
-        "tel",
+        "url", "link", "href",
+        "file", "image", "img", "path",
+        "uuid", "token", "hash",
+        "id", "code", "ref", "reference",
+        "email", "mail",
+        "phone", "tel",
     )
 
+    # -------------------------
+    # 2) Détection dates / datetimes
+    # -------------------------
+    date_cols: list[str] = []
+    datetime_cols: list[str] = []
+
     for col in df_export.columns:
+        s = df_export[col]
+
+        # déjà datetime côté pandas
+        if pd.api.types.is_datetime64_any_dtype(s):
+            datetime_cols.append(col)
+            continue
+
+        # uniquement tenter de parser sur colonnes texte
+        if pd.api.types.is_object_dtype(s) or pd.api.types.is_string_dtype(s):
+            s_str = s.astype(str).str.strip()
+
+            # Heuristiques (seuils prudents)
+            looks_date = (s_str.str.match(r"^\d{4}-\d{2}-\d{2}$", na=False).mean() > 0.6)
+            looks_dt = (
+                s_str.str.match(r"^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}", na=False).mean() > 0.6
+            )
+
+            if looks_dt:
+                df_export[col] = pd.to_datetime(s_str, errors="coerce")
+                datetime_cols.append(col)
+            elif looks_date:
+                df_export[col] = pd.to_datetime(s_str, errors="coerce")
+                date_cols.append(col)
+
+    # -------------------------
+    # 3) Sanitation / forçage texte (⚠️ ne pas toucher aux dates)
+    # -------------------------
+    for col in df_export.columns:
+        if col in date_cols or col in datetime_cols:
+            continue  # ✅ crucial: on ne recast pas les dates en texte
+
         s = df_export[col]
         if not (pd.api.types.is_object_dtype(s) or pd.api.types.is_string_dtype(s)):
             continue
@@ -695,6 +760,7 @@ def df_to_excel_bytes(df: pd.DataFrame, sheet_name: str = "Data"):
 
         s_str = s.astype(str)
 
+        # Heuristiques contenu => forcer en texte
         url_like = s_str.str.startswith(("http://", "https://", "www."))
         email_like = s_str.str.contains("@", na=False)
         long_like = s_str.str.len() > 120
@@ -702,58 +768,68 @@ def df_to_excel_bytes(df: pd.DataFrame, sheet_name: str = "Data"):
         if url_like.mean() > 0.1 or email_like.mean() > 0.3 or long_like.mean() > 0.3:
             force_text = True
 
-        def to_excel_safe(v):
-            # ⛔️ ne pas utiliser pd.isna ici (problème avec les arrays)
-            if v is None or (isinstance(v, float) and math.isnan(v)):
-                return None
-            sv = str(v)
-            if sv.startswith(("=", "+", "-", "@")):
-                sv = "'" + sv
-            if sv.startswith(("http://", "https://", "www.")):
-                sv = "'" + sv
-            return sv
-
         if force_text:
-            df_export[col] = s_str.map(to_excel_safe)
+            df_export[col] = s_str.map(_to_excel_safe_text)
         else:
-            def sanitize(v):
-                # ⛔️ idem : uniquement scalaires
-                if v is None or (isinstance(v, float) and math.isnan(v)):
-                    return None
-                sv = v
-                if isinstance(sv, str):
-                    if sv.startswith(("=", "+", "-", "@")):
-                        sv = "'" + sv
-                    if sv.startswith(("http://", "https://", "www.")) and len(sv) > 255:
-                        sv = "'" + sv
-                return sv
+            df_export[col] = s.map(_sanitize_mixed)
 
-            df_export[col] = s.map(sanitize)
+    # -------------------------
+    # 4) Écriture Excel + mise en forme
+    # -------------------------
+    # Excel: sheet name max 31 chars + pas certains caractères
+    safe_sheet_name = (sheet_name or "Data")[:31].replace(":", " ").replace("/", " ")
 
     with pd.ExcelWriter(out, engine="xlsxwriter") as writer:
-        df_export.to_excel(writer, index=False, sheet_name=sheet_name)
+        df_export.to_excel(writer, index=False, sheet_name=safe_sheet_name)
+
         workbook = writer.book
-        worksheet = writer.sheets[sheet_name]
+        worksheet = writer.sheets[safe_sheet_name]
+
+        date_format = workbook.add_format({"num_format": "dd/mm/yyyy"})
+        datetime_format = workbook.add_format({"num_format": "dd/mm/yyyy hh:mm"})
+
         n_rows, n_cols = df_export.shape
 
-        # Largeur de colonnes auto
+        # Largeur auto (sur échantillon) + cap
         for col_idx, col_name in enumerate(df_export.columns):
-            col_series = df_export[col_name].astype(str).fillna("")
-            sample = col_series.head(500)
-            max_len_value = sample.map(len).max() if not sample.empty else 0
-            max_len = max(len(str(col_name)), max_len_value)
-            base_width = min(max_len + 2, 60)
-            width = base_width + 4
+            ser = df_export[col_name]
+
+            # pour dates, afficher valeur courte pour estimer largeur
+            if col_name in datetime_cols:
+                sample = ser.dt.strftime("%d/%m/%Y %H:%M").astype(str).head(500)
+            elif col_name in date_cols:
+                sample = ser.dt.strftime("%d/%m/%Y").astype(str).head(500)
+            else:
+                sample = ser.astype(str).fillna("").head(500)
+
+            max_len_value = int(sample.map(len).max()) if len(sample) else 0
+            max_len_header = len(str(col_name))
+            width = min(max(max_len_header, max_len_value) + 6, 70)  # marge + cap
+
             worksheet.set_column(col_idx, col_idx, width)
 
+        # Appliquer formats dates/datetimes
+        cols_list = list(df_export.columns)
+        for col_name in date_cols:
+            if col_name in cols_list:
+                col_idx = cols_list.index(col_name)
+                worksheet.set_column(col_idx, col_idx, None, date_format)
+
+        for col_name in datetime_cols:
+            if col_name in cols_list:
+                col_idx = cols_list.index(col_name)
+                worksheet.set_column(col_idx, col_idx, None, datetime_format)
+
+        # Figer la ligne d'en-tête
         worksheet.freeze_panes(1, 0)
 
+        # Table structurée (avec filtres)
         if n_cols > 0:
-            table_columns = [{"header": str(col)} for col in df_export.columns]
+            table_columns = [{"header": str(c)} for c in df_export.columns]
             worksheet.add_table(
                 0,
                 0,
-                n_rows,
+                n_rows,          # ligne de fin (inclut l'en-tête)
                 n_cols - 1,
                 {
                     "columns": table_columns,
@@ -765,6 +841,7 @@ def df_to_excel_bytes(df: pd.DataFrame, sheet_name: str = "Data"):
         worksheet.set_zoom(100)
 
     return out.getvalue()
+
 
 
 def df_to_csv_bytes(df: pd.DataFrame):
@@ -2262,6 +2339,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
