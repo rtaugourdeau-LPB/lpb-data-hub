@@ -2232,16 +2232,18 @@ def page_rendements():
     )
 
 def page_docs():
-    st.title("📄 Documentation")
-    st.caption("Liens utiles / procédures / specs.")
+    st.title("📄 Listing des dashboards BI")
 
     GOOGLE_DOC_URL = "https://docs.google.com/document/d/XXXXXXXXXXXXX/edit"  # <-- mets ton lien
 
-    # Option 1 : bouton (propre)
-    st.link_button("📄 Ouvrir le Google Doc", GOOGLE_DOC_URL)
+    st.markdown(
+        f"""
+        Document centralisant les liens vers les dashboards BI, les accès et les infos utiles.
 
-    # Option 2 : lien markdown (si tu préfères)
-    st.markdown(f"🔗 **Google Doc :** [{GOOGLE_DOC_URL}]({GOOGLE_DOC_URL})")
+        👉 **Ouvrir le Google Doc :**  
+        [{GOOGLE_DOC_URL}]({GOOGLE_DOC_URL})
+        """
+    )
 
 # =============================================================================
 # 🧭 ROUTAGE PRINCIPAL
@@ -2258,7 +2260,7 @@ def main():
                 "Vérification des votes Airtable",
                 "Préqual + Emailing + Scoring ML",
                 "Comparaison des rendements actifs",
-                "Documentation (Google Doc)",  # ✅ NEW
+                "Documentation (Google Doc)",
             ],
             index=0,
         )
@@ -2270,12 +2272,13 @@ def main():
     elif app_choice == "Comparaison des rendements actifs":
         page_rendements()
     elif app_choice == "Documentation (Google Doc)":
-        page_docs()  # ✅ NEW
+        page_docs()
     else:
         page_data_hub()
 
 if __name__ == "__main__":
     main()
+
 
 
 
