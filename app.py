@@ -650,6 +650,97 @@ def build_votes_email_flags(
 # =============================================================================
 # 🔧 FONCTIONS EXPORT (Data Hub)
 # =============================================================================
+def normalize_dates_ddmmyyyy(df: pd.DataFrame, datetime_with_time: bool = False) -> pd.DataFrame:
+    """
+    Convertit toutes les colonnes détectées comme dates/datetimes en texte :
+    - date -> dd/mm/yyyy
+    - datetime -> dd/mm/yyyy hh:mm:ss (si datetime_with_time=True)
+                sinon dd/mm/yyyy (si datetime_with_time=False)
+    Gère ISO + FR chiffres + FR mois en lettres.
+    """
+    out = df.copy()
+
+    FR_MONTHS = {
+        "janvier": "01", "janv": "01", "janv.": "01",
+        "février": "02", "fevrier": "02", "févr": "02", "fevr": "02", "févr.": "02", "fevr.": "02",
+        "mars": "03",
+        "avril": "04", "avr": "04", "avr.": "04",
+        "mai": "05",
+        "juin": "06",
+        "juillet": "07", "juil": "07", "juil.": "07",
+        "août": "08", "aout": "08",
+        "septembre": "09", "sept": "09", "sept.": "09",
+        "octobre": "10", "oct": "10", "oct.": "10",
+        "novembre": "11", "nov": "11", "nov.": "11",
+        "décembre": "12", "decembre": "12", "déc": "12", "dec": "12", "déc.": "12", "dec.": "12",
+    }
+
+    def normalize_french_word_dates(series: pd.Series) -> pd.Series:
+        s = series.astype(str).str.strip().str.lower()
+        s = s.str.replace(r"\s+", " ", regex=True)
+        for k, mm in FR_MONTHS.items():
+            if "." in k:
+                s = s.str.replace(rf"(?<!\w){re.escape(k)}(?!\w)", f"/{mm}/", regex=True)
+            else:
+                s = s.str.replace(rf"\b{re.escape(k)}\b", f"/{mm}/", regex=True)
+        s = s.str.replace(r"\s*/\s*", "/", regex=True)
+        s = s.str.replace(r"^(\d{1})/", r"0\1/", regex=True)
+        return s
+
+    def try_parse(series: pd.Series) -> pd.Series:
+        s = series.astype(str).str.strip()
+        # normaliser séparateurs 05-11-2027 / 05.11.2027 -> 05/11/2027
+        s = s.str.replace(r"[-\.]", "/", regex=True)
+        s = normalize_french_word_dates(s)
+        # parse dayfirst (FR)
+        return pd.to_datetime(s, errors="coerce", dayfirst=True)
+
+    def looks_dateish(sample: pd.Series) -> bool:
+        sample = sample.astype(str).str.strip()
+        # ISO date/datetime
+        if sample.str.match(r"^\d{4}-\d{2}-\d{2}(\s+\d{2}:\d{2}:\d{2})?$", na=False).mean() > 0.4:
+            return True
+        # FR chiffres
+        if sample.str.match(r"^\d{1,2}[/\-\.]\d{1,2}[/\-\.]\d{4}(\s+\d{1,2}:\d{2}(:\d{2})?)?$", na=False).mean() > 0.4:
+            return True
+        # FR mots
+        if sample.str.match(
+            r"^\d{1,2}\s+(janvier|janv\.?|février|fevrier|févr\.?|fevr\.?|mars|avril|avr\.?|mai|juin|juillet|juil\.?|août|aout|septembre|sept\.?|octobre|oct\.?|novembre|nov\.?|décembre|decembre|déc\.?|dec\.?)\s+\d{4}$",
+            na=False
+        ).mean() > 0.4:
+            return True
+        return False
+
+    for col in out.columns:
+        s = out[col]
+
+        # déjà datetime pandas
+        if pd.api.types.is_datetime64_any_dtype(s):
+            if datetime_with_time and (
+                ~(s.dt.hour.fillna(0).eq(0) & s.dt.minute.fillna(0).eq(0) & s.dt.second.fillna(0).eq(0))
+            ).any():
+                out[col] = s.dt.strftime("%d/%m/%Y %H:%M:%S")
+            else:
+                out[col] = s.dt.strftime("%d/%m/%Y")
+            continue
+
+        # tenter parse sur colonnes texte
+        if pd.api.types.is_object_dtype(s) or pd.api.types.is_string_dtype(s):
+            sample = s.head(2000)
+            if not looks_dateish(sample):
+                continue
+
+            dt = try_parse(s)
+            if dt.notna().mean() < 0.6:
+                continue
+
+            has_time = s.astype(str).str.contains(r"\d{1,2}:\d{2}", na=False).mean() > 0.2
+            if datetime_with_time and has_time:
+                out[col] = dt.dt.strftime("%d/%m/%Y %H:%M:%S")
+            else:
+                out[col] = dt.dt.strftime("%d/%m/%Y")
+
+    return out
 
 def df_to_excel_bytes(df: pd.DataFrame, sheet_name: str = "Data") -> bytes:
     """
@@ -661,7 +752,7 @@ def df_to_excel_bytes(df: pd.DataFrame, sheet_name: str = "Data") -> bytes:
     - Largeur colonnes auto, freeze header, table structurée, filtres
     """
     out = BytesIO()
-    df_export = df.copy()
+    df_export = normalize_dates_ddmmyyyy(df, datetime_with_time=False)
 
     # -------------------------
     # 0) Helpers
@@ -917,8 +1008,9 @@ def df_to_excel_bytes(df: pd.DataFrame, sheet_name: str = "Data") -> bytes:
 
 
 def df_to_csv_bytes(df: pd.DataFrame):
-    """Export CSV simple, compatible Excel FR."""
-    csv_str = df.to_csv(index=False, sep=";", encoding="utf-8-sig")
+    """Export CSV compatible Notion + Excel FR : dates en dd/mm/yyyy."""
+    df_export = normalize_dates_ddmmyyyy(df, datetime_with_time=False)
+    csv_str = df_export.to_csv(index=False, sep=";", encoding="utf-8-sig")
     return csv_str.encode("utf-8-sig")
 
 def chunk_df_to_zip_csv_bytes(df: pd.DataFrame, rows_per_file: int, base_name: str) -> bytes:
@@ -2411,6 +2503,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
