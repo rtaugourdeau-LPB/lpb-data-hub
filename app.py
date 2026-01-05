@@ -2238,7 +2238,7 @@ def page_docs():
 
     st.markdown(
         f"""
-        Document centralisant les liens vers les dashboards BI, les accès et les infos utiles. Si vous avez besoin d’un accès, merci d’en faire la demande.
+        Document centralisant les liens vers les dashboards BI, les accès et les infos utiles. Si vous avez besoin d’un accès ou d'un export PDF ponctuel, merci d’en faire la demande.
 
         👉 **Ouvrir le Google Doc :**  
         [{GOOGLE_DOC_URL}]({GOOGLE_DOC_URL})
@@ -2278,6 +2278,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
