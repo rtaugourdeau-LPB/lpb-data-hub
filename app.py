@@ -1747,8 +1747,8 @@ def page_data_hub():
     st.caption(
         "Connexion Notion & Back-office. "
         "Référentiels de données : "
-        "[PostgreSQL](https://lapremierebriquelpb-my.sharepoint.com/:x:/g/personal/r_taugourdeau_lapremierebrique_fr/IQBupYFLm1N4RbSbYJ-Pz8bLAfb3JD6Dj4_mQLDjyD-0Za0?e=EwTCV5) · "
-        "[Notion](https://lapremierebriquelpb-my.sharepoint.com/:x:/g/personal/r_taugourdeau_lpb_fr/IQD3BNen_QP3SbgdN8wPwagIAR6fqGrdw1JDp5x_quyRzWo?rtime=UDGolkdX3kg)"
+        "[PostgreSQL](https://lapremierebriquelpb-my.sharepoint.com/:x:/g/personal/r_taugourdeau_lapremierebrique_fr/IQBupYFLm1N4RbSbYJ-Pz8bLAfb3JD6Dj4_mQLDjyD-0Za0?e=CK5PqI) · "
+        "[Notion](https://lapremierebriquelpb-my.sharepoint.com/:x:/g/personal/r_taugourdeau_lapremierebrique_fr/IQD3BNen_QP3SbgdN8wPwagIAWCviH7UbIpyaS_Eze41GIQ?e=r6Xzzt)"
     )
 
     # ---- Sidebar spécifique Data Hub ----
@@ -2280,6 +2280,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
