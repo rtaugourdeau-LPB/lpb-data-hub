@@ -2235,21 +2235,12 @@ def page_docs():
     st.title("📄 Documentation")
 
     DOCS = {
-        "📌 Document central (liens BI / accès / exports)": "https://docs.google.com/document/d/129lJRvAsvrxj4P2L_bN5zfhMeF5aXm0YV5wSJ6yLOT8/edit?tab=t.0",
+        "📌 Liens des dashboard Power BI": "https://docs.google.com/document/d/129lJRvAsvrxj4P2L_bN5zfhMeF5aXm0YV5wSJ6yLOT8/edit?tab=t.0",
         "🏗️ Architecture Fabric & MODOP Power BI": "https://docs.google.com/document/d/1MJ7R0YZRqa54vfT9ID8l5upATsqZ39I-82hATI4rCaQ/edit?tab=t.0",
         "🔄 Synchronisation ETL & Alerting emailing": "https://docs.google.com/document/d/1YU93c_Gi0MvFghxcAAd7YXAnriuLxTK_C3lYrJmnhnY/edit?tab=t.0",
     }
-
-    st.markdown(
-        """
-        Ce document centralise les liens vers les dashboards BI, les accès et les informations utiles.  
-        Si vous avez besoin d’un accès ou d’un export PDF ponctuel, merci d’en faire la demande.
-        """
-    )
-
-    st.markdown("### 📎 Liens utiles")
     for label, url in DOCS.items():
-        st.markdown(f"👉 **{label}** : [{url}]({url})")
+        st.markdown(f"**{label}** : [{url}]({url})")
 
 # =============================================================================
 # 🧭 ROUTAGE PRINCIPAL
@@ -2284,6 +2275,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
