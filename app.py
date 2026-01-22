@@ -1893,7 +1893,7 @@ def page_data_hub():
                 
                 with c2:
                     st.download_button("📥 Télécharger Excel", data=excel_bytes_imp, file_name=xlsx_name_imp,
-                                       mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                                       mime="application/vnd.openxmlformats-officeument.spreadsheetml.sheet")
                 
                 if len(edited_df_imp) > MAX_ROWS_EXPORT:
                     st.warning(f"⚠️ Export tronqué : {MAX_ROWS_EXPORT:,} premières lignes sur {len(edited_df_imp):,}.")
@@ -2005,7 +2005,7 @@ def page_data_hub():
                 
                 with c2:
                     st.download_button("📥 Télécharger Excel", data=excel_bytes, file_name=xlsx_name,
-                                       mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                                       mime="application/vnd.openxmlformats-officeument.spreadsheetml.sheet")
                 
                 if len(edited_df) > MAX_ROWS_EXPORT:
                     st.warning(f"⚠️ Export tronqué : {MAX_ROWS_EXPORT:,} premières lignes sur {len(edited_df):,}.")
@@ -2203,7 +2203,7 @@ def page_data_hub():
             
             with c2:
                 st.download_button("📥 Télécharger Excel", data=excel_bytes_bo, file_name=xlsx_name_bo,
-                                   mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                                   mime="application/vnd.openxmlformats-officeument.spreadsheetml.sheet")
             
             if len(edited_bo) > MAX_ROWS_EXPORT:
                 st.warning(f"⚠️ Export tronqué : {MAX_ROWS_EXPORT:,} premières lignes sur {len(edited_bo):,}.")
@@ -2243,9 +2243,12 @@ def page_docs():
         "📊 Listing des dashboards PBI": "https://docs.google.com/document/d/129lJRvAsvrxj4P2L_bN5zfhMeF5aXm0YV5wSJ6yLOT8/edit?tab=t.0",
         "🗄️ Architecture Fabric & MODOP Power BI": "https://docs.google.com/document/d/1MJ7R0YZRqa54vfT9ID8l5upATsqZ39I-82hATI4rCaQ/edit?tab=t.0",
         "🔄 Synchronisation ETL & Alerting emailing": "https://docs.google.com/document/d/1YU93c_Gi0MvFghxcAAd7YXAnriuLxTK_C3lYrJmnhnY/edit?tab=t.0",
+        "📌 Suivi demandes ponctuelles data (depuis 2026)": "https://www.notion.so/lapremierebrique/28c18ece1f2d80ab92cfc9b7fae8789c?v=28c18ece1f2d8033aa37000c8d2b563d",
     }
+
     for label, url in DOCS.items():
         st.markdown(f"**{label}** : [{url}]({url})")
+
 
 # =============================================================================
 # 🧭 ROUTAGE PRINCIPAL
@@ -2280,6 +2283,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
