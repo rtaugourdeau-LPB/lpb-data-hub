@@ -2240,10 +2240,20 @@ def page_docs():
     st.title("📄 Documentation")
 
     DOCS = {
-        "📊 Listing des dashboards PBI": "https://docs.google.com/document/d/129lJRvAsvrxj4P2L_bN5zfhMeF5aXm0YV5wSJ6yLOT8/edit?tab=t.0",
-        "🗄️ Architecture Fabric & MODOP Power BI": "https://docs.google.com/document/d/1MJ7R0YZRqa54vfT9ID8l5upATsqZ39I-82hATI4rCaQ/edit?tab=t.0",
-        "🔄 Synchronisation ETL & Alerting emailing": "https://docs.google.com/document/d/1YU93c_Gi0MvFghxcAAd7YXAnriuLxTK_C3lYrJmnhnY/edit?tab=t.0",
-        "📌 Suivi demandes ponctuelles data (depuis 2026)": "https://www.notion.so/lapremierebrique/28c18ece1f2d80ab92cfc9b7fae8789c?v=28c18ece1f2d8033aa37000c8d2b563d",
+        "📊 Listing des dashboards PBI":
+            "https://docs.google.com/document/d/129lJRvAsvrxj4P2L_bN5zfhMeF5aXm0YV5wSJ6yLOT8/edit?tab=t.0",
+
+        "🗄️ Architecture Fabric & MODOP Power BI":
+            "https://docs.google.com/document/d/1MJ7R0YZRqa54vfT9ID8l5upATsqZ39I-82hATI4rCaQ/edit?tab=t.0",
+
+        "🔄 Synchronisation ETL & Alerting emailing":
+            "https://docs.google.com/document/d/1YU93c_Gi0MvFghxcAAd7YXAnriuLxTK_C3lYrJmnhnY/edit?tab=t.0",
+
+        "📌 Suivi demandes ponctuelles data (depuis 2026)":
+            "https://www.notion.so/lapremierebrique/28c18ece1f2d80ab92cfc9b7fae8789c?v=28c18ece1f2d8033aa37000c8d2b563d",
+
+        "🛠️ Guide de résolution de problèmes Power BI & Power Query":
+            "https://docs.google.com/document/d/1nVkTPpOYRjmWPy_JOJHa3zw3l7maWpkU9FOkrY81jWY/edit?tab=t.0",
     }
 
     for label, url in DOCS.items():
@@ -2283,6 +2293,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
