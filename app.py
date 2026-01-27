@@ -2229,14 +2229,15 @@ def page_rendements():
     st.markdown(
         """
         Dashboard interactif comparant le rendement du crowdfunding immobilier (≈ 11,5 % annualisé)
-        aux autres classes d'actifs, avec une étude des corrélations.
+        aux autres classes d'actifs, avec une étude des corrélations et une illustration de l’effet
+        des **intérêts composés** (intérêts cumulés), à l’aide d’un simulateur basé sur l’ancienne
+        flat tax annuelle à 30 %, à titre illustratif.
 
         👉 **Ouvrir l'application RShiny :**  
         https://rtaugourdeau-lpb.shinyapps.io/RendementActifs/
 
-        👉 **Simulateur d'intérêts composés :**  
+        👉 **Simulateur web d'intérêts composés :**  
         https://businesstracker.netlify.app/simulateurinteretscomposes  
-        *(simulateur avec flat tax annuelle à 30 %)*  
         """
     )
 
@@ -2297,6 +2298,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
