@@ -2259,11 +2259,13 @@ def page_docs():
 
         "🛠️ Guide de résolution de problèmes Power BI & Power Query":
             "https://docs.google.com/document/d/1nVkTPpOYRjmWPy_JOJHa3zw3l7maWpkU9FOkrY81jWY/edit?tab=t.0",
+
+        "💡 Proposition de sujets data":
+            "https://docs.google.com/document/d/1qeP5FdOSyZw0z_x9h4HEKaWP7OXxirL7SDt4cpgVJpg/edit?tab=t.0"
     }
 
     for label, url in DOCS.items():
         st.markdown(f"**{label}** : [{url}]({url})")
-
 
 # =============================================================================
 # 🧭 ROUTAGE PRINCIPAL
@@ -2298,6 +2300,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
