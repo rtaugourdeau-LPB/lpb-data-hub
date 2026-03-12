@@ -1175,14 +1175,6 @@ def page_votes():
             "Lien de vérification Airtable : "
             "https://airtable.com/appjOQoptI7Av1obe/tblpoKvFoobl4yej0/viwbPANJvZO7AVX3A?blocks=hide"
         )
-        """
-        if st.button("🔄 Purger caches Votes"):
-            load_projects_df.clear()
-            load_subs_for_project.clear()
-            load_invest_amounts_for_project.clear()
-            st.success("Caches Votes vidés.")
-            st.experimental_rerun()
-        """
 
     with st.spinner("Chargement référentiel projets BO…"):
         projects_df = load_projects_df()
@@ -2302,6 +2294,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
