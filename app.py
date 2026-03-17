@@ -2245,7 +2245,7 @@ def page_docs():
         "🗄️ Architecture Fabric & MODOP Power BI":
             "https://docs.google.com/document/d/1MJ7R0YZRqa54vfT9ID8l5upATsqZ39I-82hATI4rCaQ/edit?tab=t.0",
 
-        "🔄 Synchronisation ETL & Alerting emailing":
+        "🔄 Projets orchestrés & Alerting emaling":
             "https://docs.google.com/document/d/1YU93c_Gi0MvFghxcAAd7YXAnriuLxTK_C3lYrJmnhnY/edit?tab=t.0",
 
         "📌 Suivi demandes ponctuelles data (depuis 2026)":
