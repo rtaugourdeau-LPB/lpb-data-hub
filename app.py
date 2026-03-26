@@ -2239,7 +2239,7 @@ def page_docs():
     st.title("📄 Documentation")
 
     DOCS = {
-        "📊 Listing des dashboards PBI":
+        "📊 Listing des dashboards BI":
             "https://docs.google.com/document/d/129lJRvAsvrxj4P2L_bN5zfhMeF5aXm0YV5wSJ6yLOT8/edit?tab=t.0",
 
         "🗄️ Architecture Fabric & MODOP Power BI":
