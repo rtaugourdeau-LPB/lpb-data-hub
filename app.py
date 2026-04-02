@@ -2206,6 +2206,28 @@ def page_data_hub():
 # 📄 MODULE 3/4 : Autres pages
 # =============================================================================
 
+def page_file_splitter():
+    st.title("✂️ File Splitter")
+    st.markdown(
+        """
+        Outil de découpe et recollement de fichiers.
+
+        👉 **Ouvrir l'application Streamlit :**  
+        [https://file-splitter.streamlit.app/](https://file-splitter.streamlit.app/)
+        """
+    )
+
+def page_prequalification():
+    st.title("📁 Préqualification des projets, emailing de refus et scoring ML de la prédiction du statut")
+    st.markdown(
+        """
+        Cette app publique est dédiée à l'équipe projet.
+
+        👉 **Ouvrir l'application Streamlit :**  
+        [https://lpb-pdp-preselection-emaling.streamlit.app/](https://lpb-pdp-preselection-emaling.streamlit.app/)
+        """
+    )
+    
 def page_prequalification():
     st.title("📁 Préqualification des projets, emailing de refus et scoring ML de la prédiction du statut")
     st.markdown(
@@ -2268,21 +2290,23 @@ def page_docs():
 def main():
     with st.sidebar:
         st.markdown("## 🧱 Outils Data LPB")
-
         app_choice = st.radio(
             "Choix de l’outil",
             [
                 "Data Hub (BO/Notion)",
                 "Vérification des votes Airtable",
+                "File Splitter",
                 "Préqual + Emailing + Scoring ML",
                 "Comparaison des rendements actifs",
                 "Documentation",
             ],
             index=0,
         )
-
+    #
     if app_choice == "Vérification des votes Airtable":
         page_votes()
+    elif app_choice == "File Splitter":
+        page_file_splitter()
     elif app_choice == "Préqual + Emailing + Scoring ML":
         page_prequalification()
     elif app_choice == "Comparaison des rendements actifs":
