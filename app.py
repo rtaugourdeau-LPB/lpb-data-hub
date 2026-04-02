@@ -2207,7 +2207,7 @@ def page_data_hub():
 # =============================================================================
 
 def page_file_splitter():
-    st.title("✂️ File Splitter")
+    st.title("✂️ Découpe et recollement de fichiers")
     st.markdown(
         """
         Outil de découpe et recollement de fichiers.
@@ -2295,7 +2295,7 @@ def main():
             [
                 "Data Hub (BO/Notion)",
                 "Vérification des votes Airtable",
-                "File Splitter",
+                "Découpe et recollement de fichiers",
                 "Préqual + Emailing + Scoring ML",
                 "Comparaison des rendements actifs",
                 "Documentation",
@@ -2305,7 +2305,7 @@ def main():
     #
     if app_choice == "Vérification des votes Airtable":
         page_votes()
-    elif app_choice == "File Splitter":
+    elif app_choice == "Découpe et recollement de fichiers":
         page_file_splitter()
     elif app_choice == "Préqual + Emailing + Scoring ML":
         page_prequalification()
