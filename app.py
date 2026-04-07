@@ -75,7 +75,7 @@ PGUSER     = PG_USER
 PGPASSWORD = PG_PASSWORD
 PGSSLMODE  = PG_SSLMODE
 
-# =============================================================================
+#========
 # 🧠 ÉTAT GLOBAL STREAMLIT (pour Data Hub)
 # =============================================================================
 
@@ -2216,17 +2216,6 @@ def page_file_splitter():
         [https://file-splitter.streamlit.app/](https://file-splitter.streamlit.app/)
         """
     )
-
-def page_prequalification():
-    st.title("📁 Préqualification des projets, emailing de refus et scoring ML de la prédiction du statut")
-    st.markdown(
-        """
-        Cette app publique est dédiée à l'équipe projet.
-
-        👉 **Ouvrir l'application Streamlit :**  
-        [https://lpb-pdp-preselection-emaling.streamlit.app/](https://lpb-pdp-preselection-emaling.streamlit.app/)
-        """
-    )
     
 def page_prequalification():
     st.title("📁 Préqualification des projets, emailing de refus et scoring ML de la prédiction du statut")
@@ -2282,7 +2271,22 @@ def page_docs():
 
     for label, url in DOCS.items():
         st.markdown(f"**{label}** : [{url}]({url})")
+        
+def page_emailing_courrier():
+    st.title("📮 Emailing & Courrier")
 
+    st.markdown(
+        """
+        Application dédiée à l’envoi d’emails et de courriers, avec :
+        - configuration SMTP Gmail
+        - connexion Merci Facteur
+        - génération / envoi de courriers
+        - suivi des envois
+
+        👉 **Ouvrir l'application Streamlit :**  
+        [https://lpb-emaling-courrier.streamlit.app/](https://lpb-emaling-courrier.streamlit.app/)
+        """
+    )
 # =============================================================================
 # 🧭 ROUTAGE PRINCIPAL
 # =============================================================================
@@ -2297,6 +2301,7 @@ def main():
                 "Vérification des votes Airtable",
                 "Découpe et recollement de fichiers",
                 "Préqual + Emailing + Scoring ML",
+                "Emailing & Courrier",
                 "Comparaison des rendements actifs",
                 "Documentation",
             ],
@@ -2309,6 +2314,8 @@ def main():
         page_file_splitter()
     elif app_choice == "Préqual + Emailing + Scoring ML":
         page_prequalification()
+    elif app_choice == "Emailing & Courrier":
+        page_emailing_courrier()
     elif app_choice == "Comparaison des rendements actifs":
         page_rendements()
     elif app_choice == "Documentation":
