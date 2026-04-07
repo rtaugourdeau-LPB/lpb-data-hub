@@ -2273,7 +2273,7 @@ def page_docs():
         st.markdown(f"**{label}** : [{url}]({url})")
         
 def page_emailing_courrier():
-    st.title("📮 Emailing + Courrier, PDP")
+    st.title("📮 Emailing + Courrier PDP")
 
     st.markdown(
         """
@@ -2305,7 +2305,7 @@ def main():
                 "Vérification des votes Airtable",
                 "Découpe et recollement de fichiers",
                 "Préqual + Emailing + Scoring ML",
-                "Emailing + Courrier, PDP",
+                "Emailing + Courrier PDP",
                 "Comparaison des rendements actifs",
                 "Documentation",
             ],
@@ -2318,7 +2318,7 @@ def main():
         page_file_splitter()
     elif app_choice == "Préqual + Emailing + Scoring ML":
         page_prequalification()
-    elif app_choice == "Emailing + Courrier, PDP":
+    elif app_choice == "Emailing + Courrier PDP":
         page_emailing_courrier()
     elif app_choice == "Comparaison des rendements actifs":
         page_rendements()
