@@ -2273,14 +2273,18 @@ def page_docs():
         st.markdown(f"**{label}** : [{url}]({url})")
         
 def page_emailing_courrier():
-    st.title("📮 Emailing & Courrier")
+    st.title("📮 PDP, Emailing & Courrier")
 
     st.markdown(
         """
-        Application dédiée à l’envoi d’emails et de courriers, avec :
-        - configuration SMTP Gmail
-        - connexion Merci Facteur
-        - génération / envoi de courriers
+        Application dédiée à la **gestion des PDP**, à l’envoi d’emails et de courriers, avec :
+        - import d’un export Notion ZIP / CSV
+        - recherche d’un **porteur de projet (PDP)** par email
+        - affichage de la **fiche PDP complète** (identité, projet, contentieux, risque, hypothèque)
+        - préparation et envoi d’**emails**
+        - préparation et envoi de **courriers**
+        - configuration **SMTP Gmail**
+        - connexion **Merci Facteur**
         - suivi des envois
 
         👉 **Ouvrir l'application Streamlit :**  
@@ -2301,7 +2305,7 @@ def main():
                 "Vérification des votes Airtable",
                 "Découpe et recollement de fichiers",
                 "Préqual + Emailing + Scoring ML",
-                "Emailing & Courrier",
+                "",
                 "Comparaison des rendements actifs",
                 "Documentation",
             ],
@@ -2314,7 +2318,7 @@ def main():
         page_file_splitter()
     elif app_choice == "Préqual + Emailing + Scoring ML":
         page_prequalification()
-    elif app_choice == "Emailing & Courrier":
+    elif app_choice == "":
         page_emailing_courrier()
     elif app_choice == "Comparaison des rendements actifs":
         page_rendements()
