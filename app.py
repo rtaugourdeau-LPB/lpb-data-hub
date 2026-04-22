@@ -2675,6 +2675,13 @@ def page_suivi_invest_tdf():
         "automatiquement depuis PostgreSQL."
     )
 
+    st.markdown(
+    """
+    📥 **Fichier d’exemple (test Excel)** :  
+    👉 [Télécharger ici](https://lapremierebriquelpb-my.sharepoint.com/:x:/g/personal/r_taugourdeau_lapremierebrique_fr/IQCwMhb3287VR7jtsZhYGzkbAX5KQCguP1ZHCqCZPDBCCDI?e=Rrwa8e)
+    """
+    )
+
     uploaded = st.file_uploader("📥 Fichier d'émargement (.xlsx)", type=["xlsx"], key="tdf_uploader")
 
     if uploaded is None:
