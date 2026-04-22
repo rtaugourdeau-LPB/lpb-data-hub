@@ -7,7 +7,11 @@ from io import BytesIO
 from typing import List, Tuple, Optional
 from datetime import datetime
 import math
-
+import openpyxl
+import psycopg2.extras
+from datetime import date
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.utils import get_column_letter
 import requests
 import psycopg2
 import streamlit as st
@@ -468,7 +472,8 @@ def pick_project_id_from_airtable(
     options = [
         f"{pid} — {disp} (score {score:.1f})"
         for pid, disp, score in cands_unique
-    ] or ["Saisir manuellement"]
+    ]
+    options.append("Saisir manuellement")
 
     choice = st.selectbox(
         "Confirme le projet exact BO (les plus probables) :",
@@ -1887,7 +1892,7 @@ def page_data_hub():
                 
                 with c2:
                     st.download_button("📥 Télécharger Excel", data=excel_bytes_imp, file_name=xlsx_name_imp,
-                                       mime="application/vnd.openxmlformats-officeument.spreadsheetml.sheet")
+                                       mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
                 
                 if len(edited_df_imp) > MAX_ROWS_EXPORT:
                     st.warning(f"⚠️ Export tronqué : {MAX_ROWS_EXPORT:,} premières lignes sur {len(edited_df_imp):,}.")
@@ -1999,7 +2004,7 @@ def page_data_hub():
                 
                 with c2:
                     st.download_button("📥 Télécharger Excel", data=excel_bytes, file_name=xlsx_name,
-                                       mime="application/vnd.openxmlformats-officeument.spreadsheetml.sheet")
+                                       mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
                 
                 if len(edited_df) > MAX_ROWS_EXPORT:
                     st.warning(f"⚠️ Export tronqué : {MAX_ROWS_EXPORT:,} premières lignes sur {len(edited_df):,}.")
@@ -2197,11 +2202,697 @@ def page_data_hub():
             
             with c2:
                 st.download_button("📥 Télécharger Excel", data=excel_bytes_bo, file_name=xlsx_name_bo,
-                                   mime="application/vnd.openxmlformats-officeument.spreadsheetml.sheet")
+                                   mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
             
             if len(edited_bo) > MAX_ROWS_EXPORT:
                 st.warning(f"⚠️ Export tronqué : {MAX_ROWS_EXPORT:,} premières lignes sur {len(edited_bo):,}.")
 
+
+# =============================================================================
+# 📄 MODULE 3 : PAGE "Suivi Invest TDF"
+# =============================================================================
+
+OUTPUT_COLUMNS_TDF = [
+    "EVENT", "DATE", "EMAIL", "NOM", "PRENOM", "INVEST",
+    "CREATION COMPTE", "ENCOURS",
+    "DERNIER INVEST AVANT SOIREE", "MONTANT",
+    "INVEST APRES SOIREE", "MONTANT",
+    "DEVENU INVEST",
+    "VARIATION INVEST AV VS AP SOIREE",
+    "MONTANT INVEST AV", "MONTANT INVEST AP",
+]
+
+ROW_KEYS_TDF = [
+    "EVENT", "DATE", "EMAIL", "NOM", "PRENOM", "INVEST",
+    "CREATION COMPTE", "ENCOURS",
+    "DERNIER INVEST AVANT SOIREE", "MONTANT",
+    "INVEST APRES SOIREE", "MONTANT_2",
+    "DEVENU INVEST",
+    "VARIATION INVEST AV VS AP SOIREE",
+    "MONTANT INVEST AV", "MONTANT INVEST AP",
+]
+
+USER_NOT_FOUND_TDF = "USER NON TROUVÉ"
+
+COLOR_HEADER_BG_TDF  = "1F3864"
+COLOR_HEADER_FG_TDF  = "FFFFFF"
+COLOR_OK_BG_TDF      = "C6EFCE"
+COLOR_OK_FG_TDF      = "006100"
+COLOR_KO_BG_TDF      = "FFC7CE"
+COLOR_KO_FG_TDF      = "9C0006"
+COLOR_NEUTRAL_BG_TDF = "FFEB9C"
+COLOR_NEUTRAL_FG_TDF = "9C5700"
+COLOR_OK_STRONG_BG_TDF = "63BE7B"
+COLOR_KO_STRONG_BG_TDF = "F8696B"
+
+ENRICH_SQL_TDF = """
+WITH attendees AS (
+    SELECT
+        UNNEST(%(emails)s::text[]) AS email_norm,
+        UNNEST(%(dates)s::date[])  AS event_date
+),
+matched_users AS (
+    SELECT
+        a.email_norm, a.event_date,
+        u.id          AS user_id,
+        u.first_name, u.last_name,
+        u.created_at  AS creation_compte
+    FROM attendees a
+    LEFT JOIN users u ON LOWER(TRIM(u.email)) = a.email_norm
+),
+user_subs AS (
+    SELECT
+        m.email_norm, m.event_date, m.user_id,
+        m.first_name, m.last_name, m.creation_compte,
+        s.created_at AS sub_created_at,
+        s.amount,
+        s.status
+    FROM matched_users m
+    LEFT JOIN users_profiles up ON up.user_id = m.user_id
+    LEFT JOIN subscriptions  s  ON s.users_profile_id = up.id
+                                AND s.status <> 'canceled'
+)
+SELECT
+    email_norm,
+    event_date,
+    user_id,
+    first_name,
+    last_name,
+    creation_compte,
+
+    CASE WHEN COUNT(*) FILTER (WHERE sub_created_at::date < event_date) > 0
+         THEN 'OUI' ELSE 'NON' END                                       AS invest,
+
+    COALESCE(SUM(amount) FILTER (WHERE status <> 'refunded'),
+             0)::numeric                                                 AS encours,
+
+    MAX(sub_created_at) FILTER (WHERE sub_created_at::date < event_date) AS dernier_invest_avant,
+    (array_agg(amount ORDER BY sub_created_at DESC)
+        FILTER (WHERE sub_created_at::date < event_date))[1]             AS montant_avant,
+
+    MIN(sub_created_at) FILTER (WHERE sub_created_at::date > event_date) AS invest_apres,
+    (array_agg(amount ORDER BY sub_created_at ASC)
+        FILTER (WHERE sub_created_at::date > event_date))[1]             AS montant_apres,
+
+    COALESCE(SUM(amount)
+        FILTER (WHERE sub_created_at::date < event_date),
+        0)::numeric                                                      AS montant_total_avant,
+    COALESCE(SUM(amount)
+        FILTER (WHERE sub_created_at::date > event_date),
+        0)::numeric                                                      AS montant_total_apres
+FROM user_subs
+GROUP BY email_norm, event_date, user_id,
+         first_name, last_name, creation_compte;
+"""
+
+def open_connection_tdf():
+    return psycopg2.connect(
+        host=PGHOST,
+        port=PGPORT,
+        dbname=PGDATABASE,
+        user=PGUSER,
+        password=PGPASSWORD,
+        sslmode=PGSSLMODE,
+        connect_timeout=10,
+    )
+
+def normalize_email_tdf(e):
+    if e is None or (isinstance(e, float) and pd.isna(e)):
+        return None
+    return str(e).strip().lower()
+
+def to_py_date_tdf(v):
+    if v is None or (isinstance(v, float) and pd.isna(v)):
+        return None
+    if isinstance(v, datetime):
+        return v.date()
+    if isinstance(v, date):
+        return v
+    try:
+        return pd.to_datetime(v).date()
+    except Exception:
+        return None
+
+def fmt_date_or_x_tdf(x):
+    return x if x is not None else "X"
+
+def fmt_amount_or_x_tdf(x):
+    if x is None:
+        return "X"
+    try:
+        return float(x)
+    except (TypeError, ValueError):
+        return "X"
+
+def compute_variation_tdf(av, ap):
+    try:
+        av_f, ap_f = float(av), float(ap)
+        if av_f == 0:
+            return None
+        return (ap_f - av_f) / av_f
+    except (TypeError, ValueError):
+        return None
+
+def devenu_invest_flag_tdf(invest_avant, invest_apres_date):
+    if invest_avant == "OUI":
+        return None
+    return "OUI" if invest_apres_date is not None else "NON"
+
+def fetch_enrichment_tdf(conn, attendees_df: pd.DataFrame) -> pd.DataFrame:
+    if attendees_df.empty:
+        return pd.DataFrame()
+
+    emails = attendees_df["email_norm"].tolist()
+    dates = attendees_df["event_date"].tolist()
+
+    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        cur.execute(ENRICH_SQL_TDF, {"emails": emails, "dates": dates})
+        return pd.DataFrame(cur.fetchall())
+
+def build_output_row_tdf(input_row: pd.Series, enrich_row, event_name) -> dict:
+    if enrich_row is None or pd.isna(enrich_row.get("user_id")):
+        return {
+            "EVENT": event_name or input_row.get("EVENT"),
+            "DATE": input_row.get("DATE"),
+            "EMAIL": input_row.get("EMAIL"),
+            "NOM": None, "PRENOM": None,
+            "INVEST": USER_NOT_FOUND_TDF,
+            "CREATION COMPTE": None, "ENCOURS": None,
+            "DERNIER INVEST AVANT SOIREE": None, "MONTANT": None,
+            "INVEST APRES SOIREE": None, "MONTANT_2": None,
+            "DEVENU INVEST": None,
+            "VARIATION INVEST AV VS AP SOIREE": None,
+            "MONTANT INVEST AV": None, "MONTANT INVEST AP": None,
+        }
+
+    invest = enrich_row.get("invest")
+    dernier_avant = enrich_row.get("dernier_invest_avant")
+    invest_apres = enrich_row.get("invest_apres")
+    montant_avant = enrich_row.get("montant_avant")
+    montant_apres = enrich_row.get("montant_apres")
+    total_avant = enrich_row.get("montant_total_avant")
+    total_apres = enrich_row.get("montant_total_apres")
+    encours = enrich_row.get("encours")
+
+    nom = enrich_row.get("last_name")
+    prenom = enrich_row.get("first_name")
+    nom = nom.strip().upper() if isinstance(nom, str) else nom
+    prenom = prenom.strip().title() if isinstance(prenom, str) else prenom
+
+    return {
+        "EVENT": event_name or input_row.get("EVENT"),
+        "DATE": input_row.get("DATE"),
+        "EMAIL": input_row.get("EMAIL"),
+        "NOM": nom,
+        "PRENOM": prenom,
+        "INVEST": invest,
+        "CREATION COMPTE": enrich_row.get("creation_compte"),
+        "ENCOURS": float(encours) if encours is not None else None,
+        "DERNIER INVEST AVANT SOIREE": fmt_date_or_x_tdf(dernier_avant),
+        "MONTANT": fmt_amount_or_x_tdf(montant_avant),
+        "INVEST APRES SOIREE": fmt_date_or_x_tdf(invest_apres),
+        "MONTANT_2": fmt_amount_or_x_tdf(montant_apres),
+        "DEVENU INVEST": devenu_invest_flag_tdf(invest, invest_apres),
+        "VARIATION INVEST AV VS AP SOIREE": compute_variation_tdf(montant_avant, montant_apres),
+        "MONTANT INVEST AV": float(total_avant) if total_avant is not None else None,
+        "MONTANT INVEST AP": float(total_apres) if total_apres is not None else None,
+    }
+
+THIN_TDF = Side(style="thin", color="BFBFBF")
+BORDER_TDF = Border(left=THIN_TDF, right=THIN_TDF, top=THIN_TDF, bottom=THIN_TDF)
+PCT_COLS_TDF = {"VARIATION INVEST AV VS AP SOIREE"}
+MONEY_COLS_TDF = {"ENCOURS", "MONTANT INVEST AV", "MONTANT INVEST AP"}
+
+def _style_header_cell_tdf(cell):
+    cell.font = Font(bold=True, color=COLOR_HEADER_FG_TDF, size=11)
+    cell.fill = PatternFill("solid", fgColor=COLOR_HEADER_BG_TDF)
+    cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    cell.border = BORDER_TDF
+
+def _color_variation_tdf(cell, value):
+    if value is None or not isinstance(value, (int, float)):
+        return
+    if value > 0.5:
+        cell.fill = PatternFill("solid", fgColor=COLOR_OK_STRONG_BG_TDF)
+        cell.font = Font(bold=True, color="FFFFFF")
+    elif value > 0:
+        cell.fill = PatternFill("solid", fgColor=COLOR_OK_BG_TDF)
+        cell.font = Font(color=COLOR_OK_FG_TDF, bold=True)
+    elif value < -0.5:
+        cell.fill = PatternFill("solid", fgColor=COLOR_KO_STRONG_BG_TDF)
+        cell.font = Font(bold=True, color="FFFFFF")
+    elif value < 0:
+        cell.fill = PatternFill("solid", fgColor=COLOR_KO_BG_TDF)
+        cell.font = Font(color=COLOR_KO_FG_TDF, bold=True)
+
+def _apply_cell_format_tdf(cell, key, col_name, value):
+    cell.border = BORDER_TDF
+    cell.alignment = Alignment(vertical="center", horizontal="left")
+
+    if isinstance(value, (datetime, date)):
+        cell.number_format = "DD/MM/YYYY"
+        cell.alignment = Alignment(vertical="center", horizontal="center")
+    elif col_name in PCT_COLS_TDF and isinstance(value, (int, float)):
+        cell.number_format = "+0.00%;-0.00%;0.00%"
+        cell.alignment = Alignment(vertical="center", horizontal="center")
+        _color_variation_tdf(cell, value)
+    elif (col_name in MONEY_COLS_TDF or key in {"MONTANT", "MONTANT_2"}) and isinstance(value, (int, float)):
+        cell.number_format = "#,##0 €"
+        cell.alignment = Alignment(vertical="center", horizontal="right")
+
+    if col_name == "INVEST":
+        cell.alignment = Alignment(vertical="center", horizontal="center")
+        if value == "OUI":
+            cell.fill = PatternFill("solid", fgColor=COLOR_OK_BG_TDF)
+            cell.font = Font(bold=True, color=COLOR_OK_FG_TDF)
+        elif value == "NON":
+            cell.fill = PatternFill("solid", fgColor=COLOR_NEUTRAL_BG_TDF)
+            cell.font = Font(bold=True, color=COLOR_NEUTRAL_FG_TDF)
+        elif value == USER_NOT_FOUND_TDF:
+            cell.fill = PatternFill("solid", fgColor=COLOR_KO_BG_TDF)
+            cell.font = Font(bold=True, color=COLOR_KO_FG_TDF)
+
+    elif col_name == "DEVENU INVEST":
+        cell.alignment = Alignment(vertical="center", horizontal="center")
+        if value == "OUI":
+            cell.fill = PatternFill("solid", fgColor=COLOR_OK_STRONG_BG_TDF)
+            cell.font = Font(bold=True, color="FFFFFF")
+        elif value == "NON":
+            cell.fill = PatternFill("solid", fgColor=COLOR_NEUTRAL_BG_TDF)
+            cell.font = Font(color=COLOR_NEUTRAL_FG_TDF)
+
+def _set_column_widths_tdf(ws):
+    widths = {
+        "EVENT": 14, "DATE": 12, "EMAIL": 32, "NOM": 18, "PRENOM": 14,
+        "INVEST": 14, "CREATION COMPTE": 14, "ENCOURS": 13,
+        "DERNIER INVEST AVANT SOIREE": 16, "MONTANT": 11,
+        "INVEST APRES SOIREE": 16,
+        "DEVENU INVEST": 13,
+        "VARIATION INVEST AV VS AP SOIREE": 14,
+        "MONTANT INVEST AV": 14, "MONTANT INVEST AP": 14,
+    }
+    for c_idx, col_name in enumerate(OUTPUT_COLUMNS_TDF, start=1):
+        ws.column_dimensions[get_column_letter(c_idx)].width = widths.get(col_name, 14)
+
+def _write_event_sheet_tdf(wb, sheet_name: str, rows: list[dict]):
+    ws = wb.create_sheet(title=sheet_name[:31])
+
+    headers_for_sheet = [
+        "EVENT", "DATE", "EMAIL", "NOM", "PRENOM", "INVEST",
+        "CREATION COMPTE", "ENCOURS",
+        "DERNIER INVEST AVANT SOIREE", "MONTANT (av.)",
+        "INVEST APRES SOIREE", "MONTANT (apr.)",
+        "DEVENU INVEST",
+        "VARIATION INVEST AV VS AP SOIREE",
+        "MONTANT INVEST AV", "MONTANT INVEST AP",
+    ]
+
+    for c_idx, col_name in enumerate(headers_for_sheet, start=1):
+        _style_header_cell_tdf(ws.cell(row=1, column=c_idx, value=col_name))
+
+    for r_idx, row in enumerate(rows, start=2):
+        for c_idx, (key, _) in enumerate(zip(ROW_KEYS_TDF, OUTPUT_COLUMNS_TDF), start=1):
+            v = row.get(key)
+            cell = ws.cell(row=r_idx, column=c_idx, value=v)
+            display_name = headers_for_sheet[c_idx - 1]
+            _apply_cell_format_tdf(cell, key, display_name, v)
+
+    ws.row_dimensions[1].height = 38
+    ws.freeze_panes = "D2"
+    _set_column_widths_tdf(ws)
+
+    if rows:
+        last_col = get_column_letter(len(headers_for_sheet))
+        ws.auto_filter.ref = f"A1:{last_col}{len(rows) + 1}"
+
+def _write_recap_sheet_tdf(wb, sheets_data: dict):
+    ws = wb.create_sheet(title="📊 Récap", index=0)
+
+    headers = [
+        "Événement", "Date", "Présents", "Emails matchés",
+        "Déjà investisseurs", "Devenus investisseurs",
+        "Taux conversion", "Montant total AV", "Montant total AP",
+        "Δ Montant",
+    ]
+    for c_idx, h in enumerate(headers, start=1):
+        _style_header_cell_tdf(ws.cell(row=1, column=c_idx, value=h))
+
+    r = 2
+    for sname, rows in sheets_data.items():
+        n_total = len(rows)
+        n_matched = sum(1 for x in rows if x["INVEST"] != USER_NOT_FOUND_TDF)
+        n_invest_av = sum(1 for x in rows if x["INVEST"] == "OUI")
+        n_devenu = sum(1 for x in rows if x["DEVENU INVEST"] == "OUI")
+        non_invest_av = sum(1 for x in rows if x["INVEST"] == "NON")
+        conv_rate = (n_devenu / non_invest_av) if non_invest_av else None
+        total_av = sum((x["MONTANT INVEST AV"] or 0) for x in rows)
+        total_ap = sum((x["MONTANT INVEST AP"] or 0) for x in rows)
+        delta = total_ap - total_av
+        date_event = next((x["DATE"] for x in rows if x.get("DATE")), None)
+
+        values = [sname, date_event, n_total, n_matched, n_invest_av, n_devenu, conv_rate, total_av, total_ap, delta]
+
+        for c_idx, v in enumerate(values, start=1):
+            cell = ws.cell(row=r, column=c_idx, value=v)
+            cell.border = BORDER_TDF
+            cell.alignment = Alignment(vertical="center", horizontal="center")
+
+            if isinstance(v, (date, datetime)):
+                cell.number_format = "DD/MM/YYYY"
+            elif c_idx == 7 and isinstance(v, (int, float)):
+                cell.number_format = "0.0%"
+                _color_variation_tdf(cell, v)
+            elif c_idx in (8, 9, 10) and isinstance(v, (int, float)):
+                cell.number_format = "#,##0 €"
+                cell.alignment = Alignment(vertical="center", horizontal="right")
+        r += 1
+
+    ws.row_dimensions[1].height = 38
+    widths = [22, 12, 11, 14, 18, 19, 14, 17, 17, 15]
+    for i, w in enumerate(widths, start=1):
+        ws.column_dimensions[get_column_letter(i)].width = w
+    ws.freeze_panes = "A2"
+
+def write_workbook_tdf(sheets_data: dict[str, list[dict]]) -> BytesIO:
+    wb = openpyxl.Workbook()
+    wb.remove(wb.active)
+
+    for sname, rows in sheets_data.items():
+        _write_event_sheet_tdf(wb, sname, rows)
+
+    _write_recap_sheet_tdf(wb, sheets_data)
+
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return buf
+
+def _style_preview_df_tdf(df: pd.DataFrame):
+    def color_invest(val):
+        if val == "OUI":
+            return f"background-color: #{COLOR_OK_BG_TDF}; color: #{COLOR_OK_FG_TDF}; font-weight: bold"
+        if val == "NON":
+            return f"background-color: #{COLOR_NEUTRAL_BG_TDF}; color: #{COLOR_NEUTRAL_FG_TDF}; font-weight: bold"
+        if val == USER_NOT_FOUND_TDF:
+            return f"background-color: #{COLOR_KO_BG_TDF}; color: #{COLOR_KO_FG_TDF}; font-weight: bold"
+        return ""
+
+    def color_devenu(val):
+        if val == "OUI":
+            return f"background-color: #{COLOR_OK_STRONG_BG_TDF}; color: white; font-weight: bold"
+        if val == "NON":
+            return f"background-color: #{COLOR_NEUTRAL_BG_TDF}; color: #{COLOR_NEUTRAL_FG_TDF}"
+        return ""
+
+    def color_variation(val):
+        if val is None or pd.isna(val):
+            return ""
+        if val > 0.5:
+            return f"background-color: #{COLOR_OK_STRONG_BG_TDF}; color: white; font-weight: bold"
+        if val > 0:
+            return f"background-color: #{COLOR_OK_BG_TDF}; color: #{COLOR_OK_FG_TDF}; font-weight: bold"
+        if val < -0.5:
+            return f"background-color: #{COLOR_KO_STRONG_BG_TDF}; color: white; font-weight: bold"
+        if val < 0:
+            return f"background-color: #{COLOR_KO_BG_TDF}; color: #{COLOR_KO_FG_TDF}; font-weight: bold"
+        return ""
+
+    styler = df.style
+    if "INVEST" in df.columns:
+        styler = styler.map(color_invest, subset=["INVEST"])
+    if "DEVENU INVEST" in df.columns:
+        styler = styler.map(color_devenu, subset=["DEVENU INVEST"])
+    var_col = "VARIATION INVEST AV VS AP SOIREE"
+    if var_col in df.columns:
+        styler = styler.map(color_variation, subset=[var_col])
+        styler = styler.format({var_col: lambda x: "" if pd.isna(x) else f"{x:+.1%}"})
+
+    for c in ("ENCOURS", "MONTANT INVEST AV", "MONTANT INVEST AP", "MONTANT (av.)", "MONTANT (apr.)"):
+        if c in df.columns:
+            styler = styler.format({
+                c: lambda x: "" if pd.isna(x) or x == "X"
+                else (f"{x:,.0f} €".replace(",", " ") if isinstance(x, (int, float)) else x)
+            })
+    return styler
+
+def style_recap_tdf(df: pd.DataFrame):
+    def color_conv(v):
+        if v is None or pd.isna(v):
+            return ""
+        if v >= 0.3:
+            return f"background-color: #{COLOR_OK_STRONG_BG_TDF}; color: white; font-weight: bold"
+        if v > 0:
+            return f"background-color: #{COLOR_OK_BG_TDF}; color: #{COLOR_OK_FG_TDF}; font-weight: bold"
+        return f"background-color: #{COLOR_NEUTRAL_BG_TDF}; color: #{COLOR_NEUTRAL_FG_TDF}"
+
+    def color_delta(v):
+        if v is None or pd.isna(v):
+            return ""
+        if v > 0:
+            return f"background-color: #{COLOR_OK_BG_TDF}; color: #{COLOR_OK_FG_TDF}; font-weight: bold"
+        if v < 0:
+            return f"background-color: #{COLOR_KO_BG_TDF}; color: #{COLOR_KO_FG_TDF}; font-weight: bold"
+        return ""
+
+    return (
+        df.style
+        .map(color_conv, subset=["Conversion"])
+        .map(color_delta, subset=["Δ (€)"])
+        .format({
+            "Conversion": lambda x: "" if pd.isna(x) else f"{x:.1%}",
+            "Total AV (€)": lambda x: f"{x:,.0f} €".replace(",", " "),
+            "Total AP (€)": lambda x: f"{x:,.0f} €".replace(",", " "),
+            "Δ (€)": lambda x: f"{x:+,.0f} €".replace(",", " "),
+            "Date": lambda x: x.strftime("%d/%m/%Y") if isinstance(x, (date, datetime)) else "",
+        })
+    )
+
+def page_suivi_invest_tdf():
+    st.title("📊 Suivi Invest TDF")
+    st.caption(
+        "Charge un xlsx où **chaque feuille = un événement** "
+        "avec les colonnes `EVENT`, `DATE`, `EMAIL`. Le reste est rempli "
+        "automatiquement depuis PostgreSQL."
+    )
+
+    uploaded = st.file_uploader("📥 Fichier d'émargement (.xlsx)", type=["xlsx"], key="tdf_uploader")
+
+    if uploaded is None:
+        st.info("⬆️ Charge un fichier xlsx pour commencer.")
+        return
+
+    try:
+        sheets = pd.read_excel(uploaded, sheet_name=None, dtype={"EMAIL": str})
+    except Exception as e:
+        st.error(f"Lecture du fichier impossible : {e}")
+        return
+
+    st.success(f"✅ {len(sheets)} feuille(s) détectée(s) : **{', '.join(sheets.keys())}**")
+
+    with st.expander("👀 Aperçu des feuilles d'entrée", expanded=False):
+        for sname, sdf in sheets.items():
+            st.write(f"**{sname}** — {len(sdf)} ligne(s)")
+            st.dataframe(sdf.head(8), use_container_width=True, hide_index=True)
+
+    if not st.button("🚀 Lancer l'enrichissement", type="primary", use_container_width=True, key="tdf_launch"):
+        return
+
+    try:
+        conn = open_connection_tdf()
+    except Exception as e:
+        st.error(f"❌ Connexion DB échouée : {e}")
+        return
+
+    sheets_data = {}
+    not_found_global = []
+    n = len(sheets)
+    progress = st.progress(0.0, text="Préparation...")
+
+    try:
+        for i, (sname, sdf) in enumerate(sheets.items()):
+            progress.progress(i / n if n else 1.0, text=f"Traitement : {sname}")
+
+            sdf = sdf.rename(columns={c: str(c).strip().upper() for c in sdf.columns})
+
+            required = {"EVENT", "DATE", "EMAIL"}
+            missing = required - set(sdf.columns)
+            if missing:
+                st.warning(f"[{sname}] Colonnes manquantes : {missing} — feuille ignorée")
+                continue
+
+            sdf = sdf.dropna(subset=["EMAIL"]).copy()
+            sdf["email_norm"] = sdf["EMAIL"].apply(normalize_email_tdf)
+            sdf["event_date"] = sdf["DATE"].apply(to_py_date_tdf)
+            sdf = sdf.dropna(subset=["email_norm", "event_date"])
+
+            if sdf.empty:
+                continue
+
+            attendees = sdf[["email_norm", "event_date"]].drop_duplicates()
+
+            try:
+                enriched = fetch_enrichment_tdf(conn, attendees)
+            except Exception as e:
+                st.error(f"[{sname}] Erreur SQL : {e}")
+                continue
+
+            enriched_dict = {}
+            if not enriched.empty:
+                for _, r in enriched.iterrows():
+                    enriched_dict[(r["email_norm"], r["event_date"])] = r
+
+            event_name = sdf["EVENT"].iloc[0] if len(sdf) else None
+
+            rows = []
+            for _, irow in sdf.iterrows():
+                er = enriched_dict.get((irow["email_norm"], irow["event_date"]))
+                row = build_output_row_tdf(irow, er, event_name)
+                rows.append(row)
+                if row["INVEST"] == USER_NOT_FOUND_TDF:
+                    not_found_global.append({
+                        "Feuille": sname,
+                        "EVENT": row["EVENT"],
+                        "DATE": row["DATE"],
+                        "EMAIL": row["EMAIL"],
+                    })
+
+            sheets_data[sname] = rows
+    finally:
+        conn.close()
+
+    progress.progress(1.0, text="Génération du fichier...")
+    out_buf = write_workbook_tdf(sheets_data)
+    progress.empty()
+
+    if not sheets_data:
+        st.error("Aucune donnée enrichie produite.")
+        return
+
+    st.divider()
+    st.header("📈 Dashboard")
+
+    total_rows = sum(len(v) for v in sheets_data.values())
+    total_match = sum(1 for v in sheets_data.values() for r in v if r["INVEST"] != USER_NOT_FOUND_TDF)
+    total_invest = sum(1 for v in sheets_data.values() for r in v if r["INVEST"] == "OUI")
+    total_devenu = sum(1 for v in sheets_data.values() for r in v if r["DEVENU INVEST"] == "OUI")
+    total_av = sum((r["MONTANT INVEST AV"] or 0) for v in sheets_data.values() for r in v)
+    total_ap = sum((r["MONTANT INVEST AP"] or 0) for v in sheets_data.values() for r in v)
+    non_invest_av_total = sum(1 for v in sheets_data.values() for r in v if r["INVEST"] == "NON")
+    conv_global = (total_devenu / non_invest_av_total) if non_invest_av_total else 0
+
+    c1, c2, c3, c4, c5 = st.columns(5)
+    c1.metric("👥 Présents", f"{total_rows}")
+    c2.metric("✉️ Emails matchés", f"{total_match}",
+              delta=f"-{total_rows - total_match} non trouvés" if total_rows != total_match else None,
+              delta_color="inverse")
+    c3.metric("💼 Déjà investisseurs", f"{total_invest}")
+    c4.metric("🎯 Devenus investisseurs", f"{total_devenu}",
+              delta=f"{conv_global:.1%} de conversion" if conv_global else None,
+              delta_color="normal")
+    c5.metric("💰 Δ Montant", f"{total_ap - total_av:,.0f} €".replace(",", " "),
+              delta=f"AP {total_ap:,.0f} € vs AV {total_av:,.0f} €".replace(",", " "),
+              delta_color="off")
+
+    st.subheader("📋 Récap par événement")
+
+    recap_rows = []
+    for sname, rows in sheets_data.items():
+        n_total = len(rows)
+        n_matched = sum(1 for x in rows if x["INVEST"] != USER_NOT_FOUND_TDF)
+        n_invest_av = sum(1 for x in rows if x["INVEST"] == "OUI")
+        n_devenu = sum(1 for x in rows if x["DEVENU INVEST"] == "OUI")
+        non_invest_av = sum(1 for x in rows if x["INVEST"] == "NON")
+        conv_rate = (n_devenu / non_invest_av) if non_invest_av else None
+        av = sum((x["MONTANT INVEST AV"] or 0) for x in rows)
+        ap = sum((x["MONTANT INVEST AP"] or 0) for x in rows)
+        date_event = next((x["DATE"] for x in rows if x.get("DATE")), None)
+        recap_rows.append({
+            "Événement": sname,
+            "Date": date_event,
+            "Présents": n_total,
+            "Matchés": n_matched,
+            "Déjà invest.": n_invest_av,
+            "Devenus invest.": n_devenu,
+            "Conversion": conv_rate,
+            "Total AV (€)": av,
+            "Total AP (€)": ap,
+            "Δ (€)": ap - av,
+        })
+
+    df_recap = pd.DataFrame(recap_rows)
+    st.dataframe(style_recap_tdf(df_recap), use_container_width=True, hide_index=True)
+
+    st.subheader("📊 Visualisations")
+
+    col_g1, col_g2 = st.columns(2)
+
+    with col_g1:
+        st.markdown("**Conversion par événement**")
+        chart_df = df_recap.set_index("Événement")[["Déjà invest.", "Devenus invest."]]
+        st.bar_chart(chart_df, height=300)
+
+    with col_g2:
+        st.markdown("**Montants investis par événement (€)**")
+        money_df = df_recap.set_index("Événement")[["Total AV (€)", "Total AP (€)"]]
+        st.bar_chart(money_df, height=300)
+
+    st.divider()
+    st.header("🔍 Détail par événement")
+
+    tabs = st.tabs(list(sheets_data.keys()))
+    for tab, (sname, rows) in zip(tabs, sheets_data.items()):
+        with tab:
+            df_view = pd.DataFrame(rows)
+            if "MONTANT_2" in df_view.columns:
+                df_view = df_view.rename(columns={
+                    "MONTANT": "MONTANT (av.)",
+                    "MONTANT_2": "MONTANT (apr.)",
+                })
+
+            n_total = len(rows)
+            n_matched = sum(1 for x in rows if x["INVEST"] != USER_NOT_FOUND_TDF)
+            n_invest_av = sum(1 for x in rows if x["INVEST"] == "OUI")
+            n_devenu = sum(1 for x in rows if x["DEVENU INVEST"] == "OUI")
+            non_invest_av = sum(1 for x in rows if x["INVEST"] == "NON")
+            conv = (n_devenu / non_invest_av) if non_invest_av else 0
+
+            mc1, mc2, mc3, mc4 = st.columns(4)
+            mc1.metric("Présents", n_total)
+            mc2.metric("Matchés", n_matched)
+            mc3.metric("Déjà invest.", n_invest_av)
+            mc4.metric("Devenus invest.", n_devenu, delta=f"{conv:.1%}" if conv else None)
+
+            st.dataframe(_style_preview_df_tdf(df_view), use_container_width=True, hide_index=True)
+
+    st.divider()
+    st.header("💾 Téléchargements")
+
+    dl1, dl2 = st.columns([2, 1])
+
+    with dl1:
+        st.download_button(
+            "📥 Fichier complété (xlsx)",
+            data=out_buf,
+            file_name=f"Suivi_Invest_TDF_complete_{datetime.now():%Y%m%d_%H%M}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            type="primary",
+            use_container_width=True,
+        )
+
+    with dl2:
+        if not_found_global:
+            df_nf = pd.DataFrame(not_found_global)
+            st.download_button(
+                f"⚠️ {len(not_found_global)} non trouvés (CSV)",
+                data=df_nf.to_csv(index=False).encode("utf-8"),
+                file_name=f"non_trouves_{datetime.now():%Y%m%d_%H%M}.csv",
+                mime="text/csv",
+                use_container_width=True,
+            )
+
+    if not_found_global:
+        with st.expander(f"⚠️ Liste des {len(not_found_global)} email(s) non trouvé(s) en DB", expanded=False):
+            st.dataframe(pd.DataFrame(not_found_global), use_container_width=True, hide_index=True)
 # =============================================================================
 # 📄 MODULE 3/4 : Autres pages
 # =============================================================================
@@ -2303,6 +2994,7 @@ def main():
             [
                 "Data Hub (BO/Notion)",
                 "Vérification des votes Airtable",
+                "Suivi Invest TDF",
                 "Découpe et recollement de fichiers",
                 "Préqual + Emailing + Scoring ML",
                 "Emailing + Courrier PDP",
@@ -2311,9 +3003,11 @@ def main():
             ],
             index=0,
         )
-
+    #
     if app_choice == "Vérification des votes Airtable":
         page_votes()
+    elif app_choice == "Suivi Invest TDF":
+        page_suivi_invest_tdf()
     elif app_choice == "Découpe et recollement de fichiers":
         page_file_splitter()
     elif app_choice == "Préqual + Emailing + Scoring ML":
