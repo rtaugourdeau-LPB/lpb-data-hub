@@ -2787,15 +2787,17 @@ def page_suivi_invest_tdf():
     non_invest_av_total = sum(1 for v in sheets_data.values() for r in v if r["INVEST"] == "NON")
     conv_global = (total_devenu / non_invest_av_total) if non_invest_av_total else 0
 
-    c1, c2, c3, c4, c5 = st.columns(5)
+    c1, c2, c3, c4, c5, c6 = st.columns(6)
+    
+    match_rate = (total_match / total_rows) if total_rows else 0
+    non_trouves = total_rows - total_match
+    
     c1.metric("👥 Présents", f"{total_rows}")
-    c2.metric("✉️ Emails matchés", f"{total_match}",
-              delta=f"-{total_rows - total_match} non trouvés" if total_rows != total_match else None,
-              delta_color="inverse")
-    c3.metric("💼 Déjà investisseurs", f"{total_invest}")
-    c4.metric("🎯 Devenus investisseurs", f"{total_devenu}",
-              delta=f"{conv_global:.1%} de conversion" if conv_global else None,
-              delta_color="normal")
+    c2.metric("✉️ Emails matchés", f"{total_match}")
+    c3.metric("❌ Non trouvés", f"{non_trouves}")
+    c4.metric("✅ Taux de matching", f"{match_rate:.1%}")
+    c5.metric("💼 Déjà investisseurs", f"{total_invest}")
+    c6.metric("🎯 Devenus investisseurs", f"{total_devenu}")
 
     st.subheader("📋 Récap par événement")
 
