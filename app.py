@@ -2796,9 +2796,6 @@ def page_suivi_invest_tdf():
     c4.metric("🎯 Devenus investisseurs", f"{total_devenu}",
               delta=f"{conv_global:.1%} de conversion" if conv_global else None,
               delta_color="normal")
-    c5.metric("💰 Δ Montant", f"{total_ap - total_av:,.0f} €".replace(",", " "),
-              delta=f"AP {total_ap:,.0f} € vs AV {total_av:,.0f} €".replace(",", " "),
-              delta_color="off")
 
     st.subheader("📋 Récap par événement")
 
