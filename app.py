@@ -2354,11 +2354,9 @@ def compute_variation_tdf(av, ap):
         return None
 
 def devenu_invest_flag_tdf(invest_avant, invest_apres_date):
-    if invest_avant == "OUI":
+    if invest_avant != "NON":
         return None
-    if invest_apres_date in (None, "X"):
-        return "NON"
-    return "OUI"
+    return "OUI" if invest_apres_date not in (None, "X") else "NON"
 
 def fetch_enrichment_tdf(conn, attendees_df: pd.DataFrame) -> pd.DataFrame:
     if attendees_df.empty:
