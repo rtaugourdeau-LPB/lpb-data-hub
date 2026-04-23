@@ -2670,7 +2670,7 @@ def style_recap_tdf(df: pd.DataFrame):
     )
 
 def page_suivi_invest_tdf():
-    st.title("📊 Suivi Invest TDF")
+    st.title("🚲 Suivi Invest TDF")
     st.caption(
         "Charge un xlsx où **chaque feuille = un événement** "
         "avec les colonnes `EVENT`, `DATE`, `EMAIL`. Le reste est rempli "
