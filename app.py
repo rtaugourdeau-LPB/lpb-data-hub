@@ -2353,10 +2353,13 @@ def compute_variation_tdf(av, ap):
     except (TypeError, ValueError):
         return None
 
-def devenu_invest_flag_tdf(invest_avant, invest_apres_date):
+def devenu_invest_flag_tdf(invest_avant, montant_total_apres):
     if invest_avant != "NON":
         return None
-    return "OUI" if invest_apres_date not in (None, "X") else "NON"
+    try:
+        return "OUI" if float(montant_total_apres) > 0 else "NON"
+    except (TypeError, ValueError):
+        return "NON"
 
 def fetch_enrichment_tdf(conn, attendees_df: pd.DataFrame) -> pd.DataFrame:
     if attendees_df.empty:
@@ -2412,7 +2415,7 @@ def build_output_row_tdf(input_row: pd.Series, enrich_row, event_name) -> dict:
         "MONTANT": fmt_amount_or_x_tdf(montant_avant),
         "INVEST APRES SOIREE": fmt_date_or_x_tdf(invest_apres),
         "MONTANT_2": fmt_amount_or_x_tdf(montant_apres),
-        "DEVENU INVEST": devenu_invest_flag_tdf(invest, invest_apres),
+        "DEVENU INVEST": devenu_invest_flag_tdf(invest, total_apres),
         "VARIATION INVEST AV VS AP SOIREE": compute_variation_tdf(montant_avant, montant_apres),
         "MONTANT INVEST AV": float(total_avant) if total_avant is not None else None,
         "MONTANT INVEST AP": float(total_apres) if total_apres is not None else None,
